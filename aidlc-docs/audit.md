@@ -150,3 +150,17 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Spike in spikes/adr001 (wasmtime 50.0.2). Trait-wrapper interposer over WasiP1Ctx via the public generic wiggle add_to_linker. All exit criteria met (functional; deny audited; overhead within noise). Findings: catch-all "/" preopen needed to audit out-of-mount opens; audit after delegation; CPython cold start ~0.5–0.8 s vs NFR-3 300 ms; first AOT compile 9 s. Recommendation GO. Awaiting user go/no-go.
 
 ---
+
+## U3 — Go decision; design issued
+**Timestamp**: 2026-11-18
+**User Input**: "go"
+**AI Response**: ADR-001 confirmed (trait wrapper). Generated construction/u3-vfs/design.md (layout with catch-all "/", interposer rules V1–V9, inputs/artifacts, stdlib cache) and design-questions.md (6 questions). Awaiting answers.
+
+---
+
+## U3 — Answers, Code Generation, Build & Test
+**Timestamp**: 2026-11-18
+**User Input**: "accept recommended defaults"
+**AI Response**: Implemented sandboxd-vfs (interposer, RunFs, stdlib cache, VFD seam). 6 real-CPython integration tests + 4 unit tests pass; workspace 48 tests, clippy -D warnings clean. Deltas: start-up probes summarized (refines V2); U4 must run python with -I -B -S; hard links into /out refused; quota counts bytes written. Spike removed from tree. Awaiting approval.
+
+---

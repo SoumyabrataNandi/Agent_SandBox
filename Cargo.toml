@@ -8,7 +8,6 @@ members = [
     "crates/sandboxd-runtime",
     "crates/sandboxd-server",
     "crates/sandboxd",
-    "spikes/adr001",
 ]
 
 [workspace.package]
@@ -21,6 +20,8 @@ description = "Self-hosted WebAssembly sandbox for running untrusted, agent-gene
 
 [workspace.dependencies]
 sandboxd-assets = { path = "crates/sandboxd-assets" }
+sandboxd-audit = { path = "crates/sandboxd-audit" }
+sandboxd-policy = { path = "crates/sandboxd-policy" }
 
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
@@ -33,6 +34,11 @@ regex = "1.13"
 humantime = "2.4"
 thiserror = "2"
 proptest = "1"
+wasmtime = { version = "50.0.2", default-features = false, features = ["runtime", "cranelift", "async", "std", "parallel-compilation"] }
+wasmtime-wasi = { version = "50.0.2", default-features = false, features = ["p1"] }
+wiggle = { version = "50.0.2", default-features = false }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "time", "sync"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"            # crates that genuinely need it (vfs, runtime) opt out locally with review
@@ -42,6 +48,11 @@ missing_debug_implementations = "warn"
 all = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 dbg_macro = "deny"
+
+# Optimize dependencies in dev/test: compiling the 32 MB CPython module with an
+# unoptimized Cranelift takes minutes; optimized it takes seconds.
+[profile.dev.package."*"]
+opt-level = 2
 
 [profile.release]
 lto = "thin"

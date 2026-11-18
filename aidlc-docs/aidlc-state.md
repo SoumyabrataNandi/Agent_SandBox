@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: CONSTRUCTION
-- **Current Stage**: U3 VFS — ADR-001 spike done (GO recommended), awaiting go/no-go
+- **Current Stage**: U3 VFS — built & tested, awaiting approval
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -41,7 +41,7 @@
 | U0 Bootstrap | ✅ Approved 2026-11-18 |
 | U1 Policy | ✅ Approved 2026-11-18 |
 | U2 Audit | ✅ Approved 2026-11-18 |
-| U3 VFS | ADR-001 spike: all criteria met — awaiting go/no-go |
+| U3 VFS | Built & tested (10 tests, real CPython) — awaiting approval |
 | U4 Runtime | Not started |
 | U5 Server + CLI | Not started |
 | U6 Escape suite + release | Not started |

@@ -8,6 +8,18 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+sandboxd-assets.workspace = true
+sandboxd-audit.workspace = true
+sandboxd-policy.workspace = true
+wasmtime.workspace = true
+wasmtime-wasi.workspace = true
+wiggle.workspace = true
+zip.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+sandboxd-audit = { workspace = true, features = ["testing"] }
+tokio.workspace = true
 
 [lints]
 workspace = true
