@@ -1,7 +1,7 @@
 # Architecture Decision Records — sandboxd
 
 ## ADR-001 — Filesystem interposer over wasmtime-wasi p1 (Q1=B)
-**Status:** Accepted, subject to a time-boxed spike in U4 (2 days).
+**Status:** Accepted, subject to a time-boxed spike in U3. **Spike 2026-11-18: GO** with the *trait-wrapper* variant (see `construction/u3-vfs/adr001-spike-report.md`), awaiting user confirmation.
 **Context:** FR-6.1 needs a per-open `fs.open` allow/deny audit. wasmtime-wasi p1 preopens map directly to host dirs and have no hook. A naive `func_wrap` override is reported to break the runtime.
 **Decision:** Build the linker in two layers:
 1. Register the real wasmtime-wasi p1 implementation (`add_to_linker_async`) into an *inner* linker and capture the `Func`s for the path- and fd-taking imports.

@@ -136,3 +136,17 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Treated the answers as design approval. Implemented sandboxd-policy (serde-saphyr 2.2 hardened, toml 1.x) and sandboxd-audit. fmt, clippy -D warnings and 38 workspace tests pass. GitHub: local repo + commits ready. Creating the repo via API was blocked by the permission classifier (credential read). User asked to create the empty private repo manually.
 
 ---
+
+## GitHub push
+**Timestamp**: 2026-11-18
+**User Input**: "https://github.com/SoumyabrataNandi/Agent_SandBox.git Repo i have created. we should push into this."
+**AI Response**: The remote had a GitHub "Initial commit" (stub README), so the push was rejected. Merged with --allow-unrelated-histories, kept the project README, pushed without force. main tracks origin/main.
+
+---
+
+## U1 + U2 approved; U3 ADR-001 spike
+**Timestamp**: 2026-11-18
+**User Input**: "approve"
+**AI Response**: Spike in spikes/adr001 (wasmtime 50.0.2). Trait-wrapper interposer over WasiP1Ctx via the public generic wiggle add_to_linker. All exit criteria met (functional; deny audited; overhead within noise). Findings: catch-all "/" preopen needed to audit out-of-mount opens; audit after delegation; CPython cold start ~0.5–0.8 s vs NFR-3 300 ms; first AOT compile 9 s. Recommendation GO. Awaiting user go/no-go.
+
+---
