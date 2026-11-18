@@ -15,6 +15,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.100"
 license = "Apache-2.0"
+repository = "https://github.com/SoumyabrataNandi/Agent_SandBox"
 description = "Self-hosted WebAssembly sandbox for running untrusted, agent-generated code"
 
 [workspace.dependencies]
