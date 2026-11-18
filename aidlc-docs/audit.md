@@ -129,3 +129,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Generated `construction/u1-policy/design.md` and `construction/u2-audit/design.md` (functional + scaled NFR/infra), plus `construction/u1-u2-design-questions.md` (7 questions). Research: serde_yaml deprecated; serde-saphyr 2.2.0 maintained, with alias budgets. Renamed fs.open → fs.access. Awaiting answers.
 
 ---
+
+## U1 + U2 — Answers, Code Generation, Build & Test
+**Timestamp**: 2026-11-18
+**User Input**: "answered" (Q1–Q7 all A). Mid-turn earlier: "push code to github with name of Agent_SandBox as a private repo into SoumyabrataNandi github repo"
+**AI Response**: Treated the answers as design approval. Implemented sandboxd-policy (serde-saphyr 2.2 hardened, toml 1.x) and sandboxd-audit. fmt, clippy -D warnings and 38 workspace tests pass. GitHub: local repo + commits ready. Creating the repo via API was blocked by the permission classifier (credential read). User asked to create the empty private repo manually.
+
+---

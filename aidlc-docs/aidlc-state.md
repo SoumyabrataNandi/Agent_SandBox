@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: CONSTRUCTION
-- **Current Stage**: U1 Policy + U2 Audit — design drafted, questions issued
+- **Current Stage**: U1 + U2 — code generated & tested, awaiting approval
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -39,8 +39,8 @@
 | Unit | Status |
 |---|---|
 | U0 Bootstrap | ✅ Approved 2026-11-18 |
-| U1 Policy | Design drafted — awaiting answers |
-| U2 Audit | Design drafted — awaiting answers |
+| U1 Policy | Built & tested (24 tests) — awaiting approval |
+| U2 Audit | Built & tested (12 tests) — awaiting approval |
 | U3 VFS | Not started (ADR-001 spike first) |
 | U4 Runtime | Not started |
 | U5 Server + CLI | Not started |

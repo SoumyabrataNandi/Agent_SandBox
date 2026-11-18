@@ -23,8 +23,15 @@ sandboxd-assets = { path = "crates/sandboxd-assets" }
 
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
-toml = "0.8"
+toml = "1"
 hex = "0.4"
+serde_json = "1"
+serde-saphyr = { version = "2.2", default-features = false, features = ["deserialize"] }
+uuid = { version = "1.29", features = ["v7", "serde"] }
+regex = "1.13"
+humantime = "2.4"
+thiserror = "2"
+proptest = "1"
 
 [workspace.lints.rust]
 unsafe_code = "deny"            # crates that genuinely need it (vfs, runtime) opt out locally with review
