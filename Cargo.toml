@@ -1,0 +1,41 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/sandboxd-assets",
+    "crates/sandboxd-policy",
+    "crates/sandboxd-audit",
+    "crates/sandboxd-vfs",
+    "crates/sandboxd-runtime",
+    "crates/sandboxd-server",
+    "crates/sandboxd",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100"
+license = "Apache-2.0"
+description = "Self-hosted WebAssembly sandbox for running untrusted, agent-generated code"
+
+[workspace.dependencies]
+sandboxd-assets = { path = "crates/sandboxd-assets" }
+
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+toml = "0.8"
+hex = "0.4"
+
+[workspace.lints.rust]
+unsafe_code = "deny"            # crates that genuinely need it (vfs, runtime) opt out locally with review
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+dbg_macro = "deny"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "unwind"                # a guest-triggered host panic must not abort the whole server

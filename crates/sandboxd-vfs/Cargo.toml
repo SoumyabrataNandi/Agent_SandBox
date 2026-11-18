@@ -1,0 +1,12 @@
+[package]
+name = "sandboxd-vfs"
+description = "Per-run virtual filesystem, WASI interposer and artifact collection for sandboxd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

@@ -1,0 +1,6 @@
+/target
+/assets/vendor/
+*.cwasm
+.sandboxd-cache/
+*.swp
+.DS_Store

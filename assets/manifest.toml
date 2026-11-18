@@ -1,0 +1,22 @@
+# Pinned guest interpreter assets.
+#
+# Every file is verified by SHA-256 twice: by scripts/fetch-assets.py on download, and by
+# crates/sandboxd-assets/build.rs before it is embedded. To bump a version, change url + sha256
+# in one reviewed commit. The sha256 must match the digest GitHub publishes for the release asset.
+
+[python]
+version = "3.15.2"
+url = "https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.15.2/python-3.15.2-wasi_sdk-33.zip"
+file = "python-3.15.2-wasi_sdk-33.zip"
+sha256 = "b8a63559c56760bbdc310dedb74fd69d10bcbafae26b705bea0ad353ad256888"
+wasi = "wasm32-wasip1"
+license = "PSF-2.0"
+# Layout inside the zip: python.wasm, lib/python3.15/**, LICENSE
+
+[javascript]
+version = "quickjs-ng 0.18.0"
+url = "https://github.com/quickjs-ng/quickjs/releases/download/v0.18.0/qjs-wasi.wasm"
+file = "qjs-wasi.wasm"
+sha256 = "2c218412cb8b17e46ee91bea7556ec38f5b9b6bd6312fddd3ceeed14aa71eaaa"
+wasi = "wasm32-wasip1"
+license = "MIT"
