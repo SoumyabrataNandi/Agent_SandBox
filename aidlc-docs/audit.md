@@ -192,3 +192,17 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Implemented sandboxd-server (RunService, axum HTTP + SSE, rmcp 3.11 MCP over stdio and Streamable HTTP, bearer auth, Prometheus metrics, config) and the sandboxd CLI. 16 new tests including AC 7 (stdio child process + HTTP with token) and AC 8; workspace 85 tests, clippy clean. OTLP exporter deferred (config reserved). Docs: README, docs/MCP.md, examples. Awaiting approval.
 
 ---
+
+## U5 approved; U6 design issued
+**Timestamp**: 2026-11-18
+**User Input**: "approve"
+**AI Response**: Generated construction/u6-escape-release/design.md (15 escape case families E-FS-1..E-AUDIT with canaries, CI gate, perf smoke, release workflow, threat model finalization) and design-questions.md (6 questions). Awaiting answers.
+
+---
+
+## U6 — Answers, Code Generation, Build & Test; Construction complete
+**Timestamp**: 2026-11-18
+**User Input**: "accept recommended defaults" (Q1–Q6)
+**AI Response**: Escape suite (17 tests, canaries) found 2 defects, both fixed with regression tests: D1 host stack overflow from deep guest recursion (process crash → DoS; fixed via max_wasm_stack 1 MiB / async_stack_size 4 MiB); D2 unbounded input file count (cap 1000). Added CI escape-suite + perf-smoke jobs, release workflow (5 targets, per-target escape gate, attestations, draft release), final THREAT_MODEL.md, build-and-test summary. 103 tests + perf pass locally (release: 92 ms / 149 ms / 6 ms). Cleaned 182 MB of test scratch from C:. Awaiting final approval; Linux/macOS CI pending user check.
+
+---

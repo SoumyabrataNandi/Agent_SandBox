@@ -1,0 +1,93 @@
+name: release
+
+# Push a tag like v0.1.0 → per-target build, escape suite against each build, draft GitHub Release
+# with archives, SHA256SUMS and build-provenance attestations. A maintainer reviews and publishes.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  archive: tar.gz }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, archive: tar.gz }
+          - { os: macos-latest,     target: aarch64-apple-darwin,      archive: tar.gz }
+          - { os: macos-15-intel,   target: x86_64-apple-darwin,       archive: tar.gz }
+          - { os: windows-latest,   target: x86_64-pc-windows-msvc,    archive: zip }
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write       # build-provenance attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: rustup show active-toolchain || rustup toolchain install
+      - run: rustup target add ${{ matrix.target }}
+      - name: Fetch and verify guest assets
+        run: python scripts/fetch-assets.py
+      - name: Escape suite (release gate)
+        run: cargo test --release --locked -p sandboxd-escape-suite -- --test-threads=4
+      - name: Build
+        run: cargo build --release --locked -p sandboxd --target ${{ matrix.target }}
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${GITHUB_REF_NAME}"
+          name="sandboxd-${ver}-${{ matrix.target }}"
+          mkdir -p "dist/${name}/licenses"
+          exe=sandboxd; [[ "${{ matrix.target }}" == *windows* ]] && exe=sandboxd.exe
+          cp "target/${{ matrix.target }}/release/${exe}" "dist/${name}/"
+          cp LICENSE NOTICE THIRD_PARTY_NOTICES.md README.md THREAT_MODEL.md "dist/${name}/"
+          cp docs/MCP.md "dist/${name}/MCP.md"
+          python - "dist/${name}/licenses" <<'PY'
+          import sys, zipfile, tomllib, pathlib
+          out = pathlib.Path(sys.argv[1])
+          m = tomllib.loads(pathlib.Path("assets/manifest.toml").read_text())
+          z = zipfile.ZipFile(pathlib.Path("assets/vendor") / m["python"]["file"])
+          (out / "CPython-LICENSE.txt").write_bytes(z.read("LICENSE"))
+          (out / "QuickJS-ng-LICENSE.txt").write_text("MIT License - see https://github.com/quickjs-ng/quickjs/blob/master/LICENSE\n")
+          PY
+          cd dist
+          if [[ "${{ matrix.archive }}" == zip ]]; then 7z a -tzip "${name}.zip" "${name}" >/dev/null; else tar czf "${name}.tar.gz" "${name}"; fi
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist/sandboxd-*.${{ matrix.archive }}
+      - uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.target }}
+          path: dist/sandboxd-*.${{ matrix.archive }}
+
+  draft-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum sandboxd-* > SHA256SUMS && cat SHA256SUMS
+      - name: Draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" --draft --verify-tag \
+            --title "sandboxd ${GITHUB_REF_NAME}" \
+            --notes "Draft created by CI. Every archive passed the escape suite on its target. Verify: \`sha256sum -c SHA256SUMS\` and \`gh attestation verify <archive> --repo ${GITHUB_REPOSITORY}\`."

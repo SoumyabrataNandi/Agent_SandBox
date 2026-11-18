@@ -39,10 +39,48 @@ jobs:
         run: cargo fmt --all -- --check
       - name: clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: test
-        run: cargo test --workspace --locked
+      - name: unit + integration tests
+        run: cargo test --workspace --locked --exclude sandboxd-escape-suite -- --test-threads=4
       - name: smoke
         run: cargo run --locked -p sandboxd -- version
+
+  # Release-blocking (NFR-4, AC 10): adversarial isolation tests on every OS.
+  escape-suite:
+    name: escape suite (${{ matrix.os }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/cache@v4
+        with:
+          path: assets/vendor
+          key: assets-${{ hashFiles('assets/manifest.toml') }}
+      - run: python scripts/fetch-assets.py
+      - uses: Swatinem/rust-cache@v2
+      - name: escape suite
+        run: cargo test --locked -p sandboxd-escape-suite -- --test-threads=4
+
+  perf-smoke:
+    name: performance smoke (2x NFR-3)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: rustup show active-toolchain || rustup toolchain install
+      - run: python scripts/fetch-assets.py
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --release --locked -p sandboxd-runtime --test perf -- --ignored --nocapture
 
   supply-chain:
     name: supply chain (cargo-deny + cargo-audit)

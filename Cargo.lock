@@ -1945,6 +1945,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "sandboxd-escape-suite"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "base64",
+ "sandboxd-audit",
+ "sandboxd-policy",
+ "sandboxd-runtime",
+ "sandboxd-server",
+ "sandboxd-vfs",
+ "serde_json",
+ "tokio",
+ "tower",
+ "uuid",
+]
+
+[[package]]
 name = "sandboxd-policy"
 version = "0.1.0"
 dependencies = [

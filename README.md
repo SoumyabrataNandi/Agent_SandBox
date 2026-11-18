@@ -45,6 +45,12 @@ curl -H "Authorization: Bearer $TOKEN" -d '{"language":"python","code":"print(6*
 - ❌ NumPy/pandas and other native extensions. These return `UNSUPPORTED_NATIVE_EXTENSION`; a container/microVM fallback is a planned extension point.
 - ❌ Network access (a brokered, allowlisted network is designed for a later phase), and `pip install`.
 
+## Security testing
+`tests/escape-suite` is an adversarial, release-blocking suite: traversal, symlinks, env reads,
+CPU/memory/output bombs, subprocess/socket attempts, policy widening, auth bypass and input abuse.
+Every case plants random canaries on the host that must never appear in any output, artifact or audit
+line. It runs on Linux, macOS and Windows in CI and against every release binary.
+
 ## Policies
 Operators define named policies in TOML or YAML: limits, read-only or read-write mounts, literal env
 vars. Agents choose a policy by name and can only *tighten* its limits. See [docs/MCP.md](docs/MCP.md#example-policy-policiesdatatoml).

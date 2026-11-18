@@ -26,6 +26,6 @@ pub use config::VfsConfig;
 pub use error::VfsError;
 pub use interposer::{FIRST_PREOPEN_FD, Interposer, InterposerReport, MountInfo, MountKind};
 pub use paths::{resolve, validate_input_name};
-pub use runfs::{Artifact, Collected, InputFile, RunFs};
+pub use runfs::{Artifact, Collected, InputFile, MAX_INPUT_FILES, RunFs};
 pub use stdlib::{STDLIB_GUEST, ensure_stdlib};
 pub use vfd::{DeviceFactory, DeviceFuture, VFD_BASE, VirtualDevice, VirtualFdTable};

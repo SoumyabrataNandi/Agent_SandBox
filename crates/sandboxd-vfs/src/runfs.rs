@@ -22,6 +22,9 @@ use crate::{
     vfd::VirtualFdTable,
 };
 
+/// Upper bound on input files per run (each becomes a host file; found by the U6 escape review).
+pub const MAX_INPUT_FILES: usize = 1000;
+
 /// A file supplied with the run request; exposed read-only under `filesystem.inputs`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InputFile {
@@ -85,7 +88,13 @@ impl RunFs {
         stdlib: Option<&Path>,
         audit: Arc<dyn AuditSink>,
     ) -> Result<RunFs, VfsError> {
-        // I1: names, duplicates, size, all before touching the disk.
+        // I1: count, names, duplicates, size, all before touching the disk.
+        if inputs.len() > MAX_INPUT_FILES {
+            return Err(VfsError::InvalidInput(format!(
+                "{} input files; at most {MAX_INPUT_FILES} are allowed",
+                inputs.len()
+            )));
+        }
         let mut seen = BTreeSet::new();
         let mut total: u64 = 0;
         for f in &inputs {

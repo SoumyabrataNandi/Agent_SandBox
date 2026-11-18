@@ -495,3 +495,22 @@ fn tampered_module_cache_is_detected_and_rebuilt() {
     .join()
     .expect("thread");
 }
+
+/// Regression (found by the U6 escape suite): deep guest recursion overflowed the *host* fiber
+/// stack and crashed the process when `max_wasm_stack` == `async_stack_size`.
+#[tokio::test(flavor = "multi_thread")]
+async fn deep_recursion_is_contained_not_a_host_crash() {
+    for code in [
+        "import sys\nsys.setrecursionlimit(10**6)\ndef f(n):\n    return f(n + 1)\nf(0)",
+        "import json\nx = []\nfor _ in range(100000):\n    x = [x]\nprint(len(json.dumps(x)))",
+    ] {
+        let r = py(code, "").await;
+        assert_ne!(r.outcome, Outcome::Ok, "{code}");
+        assert!(
+            !matches!(r.error, Some(RunError::Internal(_))),
+            "{:?}",
+            r.error
+        );
+    }
+    assert_eq!(out(&py("print('still alive')", "").await), "still alive\n");
+}

@@ -4,14 +4,15 @@
 - **Project**: sandboxd — WebAssembly sandbox for agent-generated code
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
-- **Current Phase**: CONSTRUCTION
-- **Current Stage**: U5 Server + CLI — built & tested, awaiting approval
+- **Current Phase**: CONSTRUCTION complete → OPERATIONS (placeholder)
+- **Current Stage**: Build & Test complete — cycle 1 (Phases 1–3) awaiting final approval
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
 - **Reverse Engineering Needed**: No
 - **Workspace Root**: d:\Agent-SandBox
-- **Toolchain**: Rust 1.100.0 at D:devustup + D:devrgo (user env vars); WSL route dropped (user request, storage); portable MSVC 14.52 at D:devmsvc (load via scripts/dev-env.ps1)
+- **Toolchain**: Rust 1.100.0 at D:dev
+ustup + D:devrgo (user env vars); WSL route dropped (user request, storage); portable MSVC 14.52 at D:devmsvc (load via scripts/dev-env.ps1)
 
 ## Stage Progress
 
@@ -25,12 +26,12 @@
 - [x] Units Generation — approved 2026-11-18 (U0–U6)
 
 ### 🟢 CONSTRUCTION PHASE (per unit)
-- [ ] Functional Design
-- [ ] NFR Requirements
-- [ ] NFR Design
-- [ ] Infrastructure Design
-- [ ] Code Generation
-- [ ] Build and Test
+- [x] Functional Design (all units)
+- [x] NFR Requirements (all units)
+- [x] NFR Design (all units)
+- [x] Infrastructure Design (all units)
+- [x] Code Generation (all units)
+- [x] Build and Test (all units)
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations — placeholder
@@ -43,5 +44,5 @@
 | U2 Audit | ✅ Approved 2026-11-18 |
 | U3 VFS | ✅ Approved 2026-11-18 |
 | U4 Runtime | ✅ Approved 2026-11-18 |
-| U5 Server + CLI | Built & tested (16 tests; AC 7, 8) — awaiting approval |
-| U6 Escape suite + release | Not started |
+| U5 Server + CLI | ✅ Approved 2026-11-18 |
+| U6 Escape suite + release | Built & tested (17 escape tests; 2 defects fixed) — awaiting approval |

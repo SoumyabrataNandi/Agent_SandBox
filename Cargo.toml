@@ -8,6 +8,7 @@ members = [
     "crates/sandboxd-runtime",
     "crates/sandboxd-server",
     "crates/sandboxd",
+    "tests/escape-suite",
 ]
 
 [workspace.package]

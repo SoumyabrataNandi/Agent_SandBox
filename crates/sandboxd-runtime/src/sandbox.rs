@@ -151,7 +151,12 @@ impl Sandbox {
         let mut wc = Config::new();
         wc.consume_fuel(true)
             .epoch_interruption(true)
-            .max_wasm_stack(2 << 20);
+            // Wasm may use 1 MiB of the 4 MiB async fiber stack; the remaining ~3 MiB is headroom
+            // for host calls (WASI, interposer) made from deep in the guest's stack. With equal
+            // sizes a deeply recursing guest overflowed the *host* stack and crashed the process
+            // (found by escape suite E-MEM / E-CRASH).
+            .max_wasm_stack(1 << 20)
+            .async_stack_size(4 << 20);
         let engine = Engine::new(&wc).map_err(|e| RuntimeError::Compile(e.to_string()))?;
 
         let cache = ModuleCache::new(&cfg.vfs.cache_dir, &engine)?;
