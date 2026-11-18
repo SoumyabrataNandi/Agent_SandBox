@@ -178,3 +178,17 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Implemented sandboxd-runtime. 21 tests (AC 1, 2, 3, 6 + cache tamper + concurrency) pass; workspace 69. Policy default fuel raised 2G → 20G after calibration (~4.7G fuel/s). Added /code as a reserved guest path (U1) and a Code mount kind (U3). Awaiting approval.
 
 ---
+
+## U4 approved; U5 design issued
+**Timestamp**: 2026-11-18
+**User Input**: "approve"
+**AI Response**: Checked current crates (rmcp 3.11, axum 0.8.9, clap 4.6, prometheus-client 0.26, opentelemetry 0.33). Generated construction/u5-server/design.md and design-questions.md (9 questions). Awaiting answers.
+
+---
+
+## U5 — Answers, Code Generation, Build & Test
+**Timestamp**: 2026-11-18
+**User Input**: "accept recommended defaults" (Q1–Q9)
+**AI Response**: Implemented sandboxd-server (RunService, axum HTTP + SSE, rmcp 3.11 MCP over stdio and Streamable HTTP, bearer auth, Prometheus metrics, config) and the sandboxd CLI. 16 new tests including AC 7 (stdio child process + HTTP with token) and AC 8; workspace 85 tests, clippy clean. OTLP exporter deferred (config reserved). Docs: README, docs/MCP.md, examples. Awaiting approval.
+
+---

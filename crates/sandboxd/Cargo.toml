@@ -13,6 +13,24 @@ path = "src/main.rs"
 
 [dependencies]
 sandboxd-assets.workspace = true
+sandboxd-audit.workspace = true
+sandboxd-policy.workspace = true
+sandboxd-runtime.workspace = true
+sandboxd-server.workspace = true
+sandboxd-vfs.workspace = true
+rmcp.workspace = true
+axum.workspace = true
+clap.workspace = true
+tokio = { workspace = true, features = ["signal", "io-std"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+base64.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+rmcp.workspace = true
+tokio = { workspace = true, features = ["process"] }
 
 [lints]
 workspace = true
