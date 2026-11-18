@@ -33,6 +33,8 @@ pub enum MountKind {
     Outputs,
     /// Operator mount from the policy.
     Policy,
+    /// The submitted program (`/code`, read-only).
+    Code,
 }
 
 /// One preopened directory, in preopen (fd) order.

@@ -164,3 +164,17 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Implemented sandboxd-vfs (interposer, RunFs, stdlib cache, VFD seam). 6 real-CPython integration tests + 4 unit tests pass; workspace 48 tests, clippy -D warnings clean. Deltas: start-up probes summarized (refines V2); U4 must run python with -I -B -S; hard links into /out refused; quota counts bytes written. Spike removed from tree. Awaiting approval.
 
 ---
+
+## U3 approved; U4 design issued
+**Timestamp**: 2026-11-18
+**User Input**: "approve"
+**AI Response**: Measured release startup: CPython print(1) 86–116 ms, imports 433 ms (no .pyc), QuickJS 3 ms, deserialize 7 ms vs compile 5.4 s. NFR-3 met for trivial code. Generated construction/u4-runtime/design.md and design-questions.md (6 questions). Awaiting answers.
+
+---
+
+## U4 — Answers, Code Generation, Build & Test
+**Timestamp**: 2026-11-18
+**User Input**: "ccept recommended default" (Q1–Q6 → recommended)
+**AI Response**: Implemented sandboxd-runtime. 21 tests (AC 1, 2, 3, 6 + cache tamper + concurrency) pass; workspace 69. Policy default fuel raised 2G → 20G after calibration (~4.7G fuel/s). Added /code as a reserved guest path (U1) and a Code mount kind (U3). Awaiting approval.
+
+---

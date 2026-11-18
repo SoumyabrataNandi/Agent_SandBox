@@ -21,6 +21,8 @@ pub const MAX_POLICY_FILE_BYTES: usize = 1024 * 1024;
 pub const STDLIB_GUEST_PATH: &str = "/usr/local/lib/python3.15";
 /// Guest path reserved for virtual devices (ADR-002).
 pub const DEVICE_GUEST_PATH: &str = "/dev/sandbox";
+/// Guest path where the runtime places the submitted program (read-only; U4 design Q4).
+pub const CODE_GUEST_PATH: &str = "/code";
 /// Env keys the runtime controls; policies cannot set them.
 pub const RESERVED_ENV: &[&str] = &[
     "PYTHONHOME",
@@ -47,7 +49,8 @@ impl Default for Limits {
     fn default() -> Self {
         Self {
             wall_clock: Duration::from_secs(5),
-            fuel: 2_000_000_000,
+            // ≈ 4 s of CPU (calibrated in U4: ~4.7G fuel/s), so wall_clock (5 s) is the binding limit.
+            fuel: 20_000_000_000,
             memory: ByteSize::mib(256),
             stdout: ByteSize::mib(1),
             stderr: ByteSize::kib(256),
@@ -817,6 +820,7 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
     let mut taken: Vec<(String, String)> = vec![
         (STDLIB_GUEST_PATH.into(), "the Python stdlib".into()),
         (DEVICE_GUEST_PATH.into(), "sandbox devices".into()),
+        (CODE_GUEST_PATH.into(), "the submitted program".into()),
     ];
     for (p, label, field) in [
         (&inputs, "filesystem.inputs", "filesystem.inputs"),

@@ -1269,6 +1269,20 @@ dependencies = [
 [[package]]
 name = "sandboxd-runtime"
 version = "0.1.0"
+dependencies = [
+ "bytes",
+ "hex",
+ "sandboxd-assets",
+ "sandboxd-audit",
+ "sandboxd-policy",
+ "sandboxd-vfs",
+ "sha2",
+ "thiserror 2.0.21",
+ "tokio",
+ "wasmtime",
+ "wasmtime-wasi",
+ "zip",
+]
 
 [[package]]
 name = "sandboxd-server"

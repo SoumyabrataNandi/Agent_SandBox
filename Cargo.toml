@@ -22,6 +22,7 @@ description = "Self-hosted WebAssembly sandbox for running untrusted, agent-gene
 sandboxd-assets = { path = "crates/sandboxd-assets" }
 sandboxd-audit = { path = "crates/sandboxd-audit" }
 sandboxd-policy = { path = "crates/sandboxd-policy" }
+sandboxd-vfs = { path = "crates/sandboxd-vfs" }
 
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
@@ -38,7 +39,8 @@ wasmtime = { version = "50.0.2", default-features = false, features = ["runtime"
 wasmtime-wasi = { version = "50.0.2", default-features = false, features = ["p1"] }
 wiggle = { version = "50.0.2", default-features = false }
 zip = { version = "2", default-features = false, features = ["deflate"] }
-tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "time", "sync"] }
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "time", "sync", "io-util"] }
+bytes = "1"
 
 [workspace.lints.rust]
 unsafe_code = "deny"            # crates that genuinely need it (vfs, runtime) opt out locally with review

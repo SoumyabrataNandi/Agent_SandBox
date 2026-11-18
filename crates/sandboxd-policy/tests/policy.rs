@@ -136,6 +136,7 @@ fn guest_paths_validated() {
         "/usr",
         "/usr/local/lib/python3.15",
         "/dev/sandbox/x",
+        "/code",
         "/a\\\\b",
         "/a//b",
     ] {

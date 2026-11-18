@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: CONSTRUCTION
-- **Current Stage**: U3 VFS — built & tested, awaiting approval
+- **Current Stage**: U4 Runtime — built & tested, awaiting approval
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -41,7 +41,7 @@
 | U0 Bootstrap | ✅ Approved 2026-11-18 |
 | U1 Policy | ✅ Approved 2026-11-18 |
 | U2 Audit | ✅ Approved 2026-11-18 |
-| U3 VFS | Built & tested (10 tests, real CPython) — awaiting approval |
-| U4 Runtime | Not started |
+| U3 VFS | ✅ Approved 2026-11-18 |
+| U4 Runtime | Built & tested (21 tests; AC 1,2,3,6) — awaiting approval |
 | U5 Server + CLI | Not started |
 | U6 Escape suite + release | Not started |

@@ -11,7 +11,7 @@ description = "Pandas-free CSV crunching with a read-only dataset"
 
 [limits]                          # every field optional; defaults shown
 wall_clock      = "5s"            # 10ms ..= 1h
-fuel            = "2G"            # instruction budget; 1M ..= 1T; suffixes K/M/G/T (×1000)
+fuel            = "20G"           # instruction budget; 1M ..= 1T; ×1000 suffixes. Default raised from 2G in U4 (≈4 s CPU)
 memory          = "256MiB"        # 1MiB ..= 4GiB (wasm32 ceiling)
 stdout          = "1MiB"          # 0 ..= 64MiB
 stderr          = "256KiB"        # 0 ..= 64MiB

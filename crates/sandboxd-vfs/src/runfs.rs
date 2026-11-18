@@ -199,11 +199,35 @@ impl RunFs {
         Ok(fs)
     }
 
+    /// Place the submitted program at `/code/<file_name>` (read-only). Call before [`Self::preopen`].
+    pub fn with_code(mut self, file_name: &str, bytes: &[u8]) -> Result<Self, VfsError> {
+        validate_input_name(file_name).map_err(VfsError::InvalidInput)?;
+        if file_name.contains('/') {
+            return Err(VfsError::InvalidInput(format!(
+                "code file name {file_name:?} must not contain '/'"
+            )));
+        }
+        if self.mounts.iter().any(|m| m.kind == MountKind::Code) {
+            return Err(VfsError::InvalidInput("code already set".into()));
+        }
+        let dir = self.run_dir.join("code");
+        mkdir_private(&dir)?;
+        write_new(&dir.join(file_name), bytes)?;
+        self.mounts.push(MountInfo {
+            guest: sandboxd_policy::CODE_GUEST_PATH.into(),
+            host: dir,
+            kind: MountKind::Code,
+        });
+        Ok(self)
+    }
+
     /// Add every preopen to `builder`, in the order the interposer expects.
     pub fn preopen(&self, builder: &mut WasiCtxBuilder, policy: &Policy) -> Result<(), VfsError> {
         for m in &self.mounts {
             let perms = match m.kind {
-                MountKind::CatchAll | MountKind::Stdlib | MountKind::Inputs => FsPerms::ReadOnly,
+                MountKind::CatchAll | MountKind::Stdlib | MountKind::Inputs | MountKind::Code => {
+                    FsPerms::ReadOnly
+                }
                 MountKind::Outputs => FsPerms::ReadWrite,
                 MountKind::Policy => {
                     let rw = policy

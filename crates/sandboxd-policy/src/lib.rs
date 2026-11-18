@@ -18,8 +18,8 @@ mod units;
 pub use dir::{PolicyDir, PolicySummary};
 pub use error::{PolicyError, PolicyErrors};
 pub use model::{
-    AuditPolicy, DEVICE_GUEST_PATH, Filesystem, Format, HttpRule, Limits, LoadOptions,
-    MAX_POLICY_FILE_BYTES, Mount, MountMode, NetworkPolicy, Overrides, Policy, PolicySpec,
-    RESERVED_ENV, SCHEMA_VERSION, STDLIB_GUEST_PATH, SessionPolicy, TcpRule,
+    AuditPolicy, CODE_GUEST_PATH, DEVICE_GUEST_PATH, Filesystem, Format, HttpRule, Limits,
+    LoadOptions, MAX_POLICY_FILE_BYTES, Mount, MountMode, NetworkPolicy, Overrides, Policy,
+    PolicySpec, RESERVED_ENV, SCHEMA_VERSION, STDLIB_GUEST_PATH, SessionPolicy, TcpRule,
 };
 pub use units::{ByteSize, fmt_duration, fmt_fuel, parse_bytes, parse_duration, parse_fuel};
