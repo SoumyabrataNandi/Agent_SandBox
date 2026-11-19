@@ -222,6 +222,8 @@ async fn phase_profile(cx: &Ctx, snap: &Module) -> Value {
         Ok(i) => i,
         Err(e) => return json!({"error": format!("instantiate: {e}")}),
     };
+    // Code run during instantiation (e.g. a start function) is outside the phases below.
+    let instantiate_fuel = budget.saturating_sub(store.get_fuel().unwrap_or(budget));
     let Ok(step) = inst.get_typed_func::<i32, ()>(&mut store, "sandboxd-step") else {
         return json!({"error": "no sandboxd-step export"});
     };
@@ -240,11 +242,49 @@ async fn phase_profile(cx: &Ctx, snap: &Module) -> Value {
             json!({"fuel": used, "ms": t.elapsed().as_secs_f64() * 1e3}),
         );
     }
+    phases.insert("instantiate_fuel".into(), json!(instantiate_fuel));
+    phases.insert("module".into(), module_shape(snap));
     phases.insert(
         "stdout".into(),
         json!(String::from_utf8_lossy(&out.contents())),
     );
     Value::Object(phases)
+}
+
+/// Top-level sections of a wasm binary: (id, size). Id 8 = start, 11 = data, 12 = data count.
+fn sections(bytes: &[u8]) -> Value {
+    fn leb(b: &[u8], i: &mut usize) -> Option<u64> {
+        let (mut r, mut s) = (0u64, 0u32);
+        loop {
+            let x = *b.get(*i)?;
+            *i += 1;
+            r |= u64::from(x & 0x7f) << s;
+            if x < 0x80 {
+                return Some(r);
+            }
+            s += 7;
+        }
+    }
+    let mut out = Vec::new();
+    let mut i = 8;
+    while i < bytes.len() {
+        let id = bytes[i];
+        i += 1;
+        let Some(n) = leb(bytes, &mut i) else { break };
+        out.push(json!([id, n]));
+        i += usize::try_from(n).unwrap_or(usize::MAX - i);
+    }
+    Value::Array(out)
+}
+
+/// Imports/exports summary of a module (looking for a start function or unexpected exports).
+fn module_shape(m: &Module) -> Value {
+    let exports: Vec<String> = m.exports().map(|e| e.name().to_string()).collect();
+    let imports: Vec<String> = m
+        .imports()
+        .map(|i| format!("{}::{}", i.module(), i.name()))
+        .collect();
+    json!({"exports": exports, "imports": imports.len()})
 }
 
 fn code_dir(cx: &Ctx, name: &str, file: &str, code: &str) -> Res<PathBuf> {
@@ -440,6 +480,8 @@ async fn python(cx: &Ctx, upstream: &Path, custom: Option<&Path>) -> Value {
         "snapshot_build_ms": snapshot_ms,
         "compat": compat,
         "phases": phases,
+        "snapshot_sections": sections(&snap),
+        "custom_sections": sections(&custom_bytes),
         "go": all_equal && random_differs && speedup >= 5.0,
     })
 }

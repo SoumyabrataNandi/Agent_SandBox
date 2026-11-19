@@ -411,3 +411,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Phases of a restored print(1) run: argv 6.7k, environ 13k, per-run setup 0.98M, run file 0.24M, exit effects 0.48M (total ~1.72M) vs 11.48M for the whole run: ~9.8M is wasi-libc exit() (C atexit handlers/destructors). sandboxd-run now ends with _Exit(status) after the Python-visible exit effects. Re-running.
 
 ---
+
+## C3-U1 spike run 9 (bb604e4)
+**Timestamp**: 2026-11-19
+**User Input**: (none)
+**AI Response**: Report says go=true (5.04x wall), but fuel unchanged (11.47M), so the crossing is runner noise and the _Exit hypothesis was wrong; not accepted as a go. Phase measurements start after instantiation, so the ~9.8M gap is likely execution during instantiation (start function / memory init). Added instantiate fuel, module export shape and raw section listing (start/data sections) to the report. Re-running.
+
+---
