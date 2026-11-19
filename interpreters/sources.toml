@@ -1,11 +1,13 @@
-# Pinned inputs for the custom snapshot-capable interpreters (cycle 3, ADR-C3-1).
+# Pinned inputs for the snapshot-capable interpreters (cycle 3, ADR-C3-1).
 #
-# Built only in CI (.github/workflows/interpreters.yml). Every download is verified against its
-# sha256. An empty sha256 is allowed only during the C3-U1 spike: the build prints the digest it
-# saw, and the digest must be pinned here before C3-U3 (release mode refuses empty pins).
+# Built only in CI (.github/workflows/interpreters.yml) with SANDBOXD_INTERP_MODE=release: every
+# download must match its sha256 here.
 #
-# The wasi_sdk, wasmtime_cli and cpython pins below were recorded from CI's first download
-# (spike run 6e60851); they are cross-checked against the upstream-published digests in C3-U3.
+# Provenance of the pins (C3-U3 cross-check, 2026-11-19):
+#   wasi_sdk, wasmtime_cli: equal to the sha256 digests GitHub publishes for those release assets.
+#   cpython:                equal to the sha256 python.org publishes (downloads API, release 3.15.2).
+#   quickjs:                GitHub tag archive (no upstream-published digest); pinned from the CI
+#                           download. A regenerated archive fails the build instead of changing it.
 
 [wasi_sdk]
 version = "33"
@@ -27,4 +29,4 @@ sha256 = "f74e1db0eabd651cd01e4e2a00201bd41866abe74869ab716f9bf33cbbaa0943"
 [quickjs]
 version = "0.18.0"
 url = "https://github.com/quickjs-ng/quickjs/archive/refs/tags/v0.18.0.tar.gz"
-sha256 = ""
+sha256 = "28bcd89aa3683fd2a946537e5ce3f11cc46b5cbf3383c7561aaef3df5ff9f1dd"

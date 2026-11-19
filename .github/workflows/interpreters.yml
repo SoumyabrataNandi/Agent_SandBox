@@ -22,6 +22,8 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # Every input in interpreters/sources.toml must match its pinned sha256.
+  SANDBOXD_INTERP_MODE: release
 
 jobs:
   spike:
@@ -29,6 +31,9 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: write # only to push the report to the ci-results branch
+    outputs:
+      go: ${{ steps.verdict.outputs.go }}
+      source_hash: ${{ steps.verdict.outputs.source_hash }}
     steps:
       - uses: actions/checkout@v5
       - id: setup_python
@@ -143,6 +148,17 @@ jobs:
           git commit -m "spike report ${GITHUB_SHA}"
           git push origin ci-results
 
+      - name: Verdict and source hash
+        id: verdict
+        if: always()
+        shell: bash
+        run: |
+          go=$(python3 -c "import json; print(str(json.load(open('final-report.json')).get('go', False)).lower())" 2>/dev/null || echo false)
+          hash=$(find interpreters -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-16)
+          echo "go=$go" >>"$GITHUB_OUTPUT"
+          echo "source_hash=$hash" >>"$GITHUB_OUTPUT"
+          echo "go=$go source_hash=$hash"
+
       - uses: actions/upload-artifact@v6
         if: always()
         with:
@@ -152,3 +168,39 @@ jobs:
             *.log
             final-report.json
           if-no-files-found: warn
+
+  # C3-U3: publish the interpreters only when the spike verdict is "go" (compatible + >= 5x).
+  release:
+    needs: spike
+    if: github.event_name == 'push' && needs.spike.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the interp-<hash> release
+      id-token: write # build-provenance attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          name: interpreters-${{ github.sha }}
+          path: art
+      - name: Checksums
+        shell: bash
+        run: |
+          cd art/dist
+          sha256sum sandboxd-python.wasm sandboxd-qjs.wasm | tee SHA256SUMS
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            art/dist/sandboxd-python.wasm
+            art/dist/sandboxd-qjs.wasm
+      - name: Publish interp-${{ needs.spike.outputs.source_hash }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: interp-${{ needs.spike.outputs.source_hash }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$TAG already published"; exit 0
+          fi
+          gh release create "$TAG" art/dist/sandboxd-python.wasm art/dist/sandboxd-qjs.wasm art/dist/SHA256SUMS             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease             --title "Snapshot-capable interpreters $TAG"             --notes "CPython 3.15.2 and QuickJS-ng 0.18.0 built for WASI (wasi-sdk 33) as reactors with sandboxd entry points, from the pinned sources in interpreters/sources.toml at $GITHUB_SHA. Verify with SHA256SUMS and gh attestation verify <file> --repo $GITHUB_REPOSITORY."

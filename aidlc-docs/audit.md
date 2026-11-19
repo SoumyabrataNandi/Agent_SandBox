@@ -432,3 +432,24 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Python print(1) 1.83 ms vs 29.2 ms (16x), 1.73M vs 54.8M fuel (32x), instantiation 0 fuel; 10/10 byte-identical; random re-seeded. JavaScript 0.41 vs 1.06 ms (2.6x), 65k vs 3.63M fuel, 5/5 identical. Local runtime suites pass with the new engine setting. Summary: cycle-3/construction/c3-u1-snapshot-spike/spike-summary.md. Recommending GO; awaiting the user's decision.
 
 ---
+
+## C3-U1 decision: GO
+**Timestamp**: 2026-11-19
+**User Input**: "go"
+**AI Response**: Spike accepted; FR-S1 proceeds. Starting C3-U3 design.
+
+---
+
+## C3-U3 design issued
+**Timestamp**: 2026-11-19
+**User Input**: (follows "go")
+**AI Response**: Generated cycle-3/construction/c3-u3-snapshots/design.md (asset release pipeline gated on spike go, release-mode pins + upstream digest cross-check, embedded snapshot-capable interpreters, Wizer at start-up with cache/sidecar/fallback, run path table, memory floor, `interpreter` audit field, [runtime] snapshots, tests incl. Windows CoW measurement) and design-questions.md (5 questions). Awaiting answers.
+
+---
+
+## C3-U3 answers; release pipeline
+**Timestamp**: 2026-11-19
+**User Input**: "accept recommended defaults"
+**AI Response**: Q1–Q5 = A. Cross-checked pins: wasi-sdk 33 and wasmtime 50.0.2 equal GitHub's published asset digests; CPython 3.15.2 equals python.org's published sha256; QuickJS is a GitHub tag archive without an upstream digest (pinned from CI, documented). Release mode for all builds; sandboxd-step compiled out unless SANDBOXD_SPIKE; spike job exports go + source hash; new `release` job (push + go only) publishes `interp-<hash>` (prerelease) with SHA256SUMS and provenance attestations.
+
+---

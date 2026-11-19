@@ -282,6 +282,7 @@ __attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
     _Exit(status);
 }
 
+#ifdef SANDBOXD_SPIKE
 /* Diagnostics for the C3-U1 spike: the phases of sandboxd-run one at a time, so their cost
  * (fuel) can be measured separately. 1 argv, 2 environ, 3 per-run setup, 4 run the file,
  * 5 exit effects (the process is not exited). */
@@ -296,3 +297,4 @@ __attribute__((export_name("sandboxd-step"))) void sandboxd_step(int step) {
     default: break;
     }
 }
+#endif /* SANDBOXD_SPIKE */
