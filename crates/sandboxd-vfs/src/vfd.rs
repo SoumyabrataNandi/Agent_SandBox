@@ -1,5 +1,5 @@
-//! Virtual device seam (ADR-002). No devices are registered in this cycle; the Phase 4 network
-//! broker plugs `/dev/sandbox/http` and `/dev/sandbox/tcp/<host>:<port>` in here.
+//! Virtual device seam (ADR-002). The network broker (`sandboxd-net`) plugs `/dev/sandbox/http`
+//! and `/dev/sandbox/tcp/<host>:<port>` in here; the runtime adds `/dev/sandbox/info`.
 
 use std::{collections::BTreeMap, fmt, future::Future, pin::Pin};
 
@@ -19,6 +19,40 @@ pub trait VirtualDevice: Send {
     /// Called once right after the factory created the device, before the fd is handed to the
     /// guest. Async setup (e.g. a TCP connect) happens here so failures surface at `open`.
     fn opened(&mut self) -> DeviceFuture<'_, ()> {
+        Box::pin(async { Ok(()) })
+    }
+}
+
+/// A read-only device that returns fixed bytes (e.g. `/dev/sandbox/info`). Writes fail `EBADF`.
+#[derive(Debug, Clone)]
+pub struct StaticDevice {
+    data: std::sync::Arc<[u8]>,
+    off: usize,
+}
+
+impl StaticDevice {
+    /// A device that reads `data` and then end-of-stream.
+    pub fn new(data: impl Into<std::sync::Arc<[u8]>>) -> Self {
+        Self {
+            data: data.into(),
+            off: 0,
+        }
+    }
+}
+
+impl VirtualDevice for StaticDevice {
+    fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> DeviceFuture<'a, usize> {
+        Box::pin(async move {
+            let n = (self.data.len() - self.off).min(buf.len());
+            buf[..n].copy_from_slice(&self.data[self.off..self.off + n]);
+            self.off += n;
+            Ok(n)
+        })
+    }
+    fn write<'a>(&'a mut self, _buf: &'a [u8]) -> DeviceFuture<'a, usize> {
+        Box::pin(async { Err(Errno::Badf) })
+    }
+    fn close(&mut self) -> DeviceFuture<'_, ()> {
         Box::pin(async { Ok(()) })
     }
 }
@@ -77,5 +111,35 @@ impl VirtualFdTable {
     /// Remove and return a device (on close).
     pub fn take(&mut self, fd: u32) -> Option<Box<dyn VirtualDevice>> {
         self.open.remove(&fd)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn static_device_reads_once_and_refuses_writes() {
+        let mut t = VirtualFdTable::default();
+        t.register(
+            "info",
+            Box::new(|rel: &str| {
+                if rel == "info" {
+                    Ok(Box::new(StaticDevice::new(b"abcdef".to_vec())) as Box<dyn VirtualDevice>)
+                } else {
+                    Err(Errno::Noent)
+                }
+            }),
+        );
+        assert_eq!(t.open("info/x").await.err(), Some(Errno::Noent));
+        assert_eq!(t.open("http").await.err(), Some(Errno::Noent));
+        let fd = t.open("info").await.expect("open");
+        let dev = t.get(fd).expect("dev");
+        let mut buf = [0u8; 4];
+        assert_eq!(dev.read(&mut buf).await, Ok(4));
+        assert_eq!(&buf, b"abcd");
+        assert_eq!(dev.read(&mut buf).await, Ok(2));
+        assert_eq!(dev.read(&mut buf).await, Ok(0));
+        assert_eq!(dev.write(b"x").await, Err(Errno::Badf));
     }
 }

@@ -12,15 +12,19 @@ use std::{
 use sandboxd_audit::{
     AuditEvent, AuditSink, EventKind, FileDigest, LimitKind, Outcome, RunId, sha256_hex,
 };
+use sandboxd_net::{Broker, RunCtx};
 use sandboxd_policy::Policy;
-use sandboxd_vfs::{Interposer, RunFs, VfsConfig, VirtualFdTable, ensure_stdlib};
+use sandboxd_vfs::{
+    Interposer, RunFs, StaticDevice, VfsConfig, VirtualDevice, VirtualFdTable, ensure_stdlib,
+};
 use tokio::sync::mpsc;
 use wasmtime::{Config, Engine, InstancePre, Linker, ResourceLimiter, Store, Trap, UpdateDeadline};
 use wasmtime_wasi::{WasiCtxBuilder, p1::wasi_snapshot_preview1 as p1, p2::pipe::MemoryInputPipe};
 
 use crate::{
-    cache::{ModuleCache, ensure_bytecode, python_wasm},
+    cache::{ModuleCache, ensure_bytecode, ensure_helper_bytecode, python_wasm},
     error::RuntimeError,
+    helpers::{JS_BOOT, PYTHON_LAUNCHER, ensure_helpers, python_needs_bootstrap},
     native,
     stream::CappedStream,
     types::{Language, RunError, RunEvent, RunRequest, RunResult, Timings},
@@ -35,6 +39,9 @@ pub struct RuntimeConfig {
     pub max_arg_bytes: usize,
     /// Precompile stdlib bytecode on first use (Q2). Disable only for tests of the cold path.
     pub precompile_stdlib: bool,
+    /// Network egress broker (cycle 2). `None`: runs whose policy grants network access are
+    /// refused with `POLICY_VIOLATION`; runs without grants are unaffected.
+    pub broker: Option<Arc<Broker>>,
 }
 
 impl Default for RuntimeConfig {
@@ -45,6 +52,7 @@ impl Default for RuntimeConfig {
             max_args: 64,
             max_arg_bytes: 4096,
             precompile_stdlib: true,
+            broker: None,
         }
     }
 }
@@ -119,6 +127,7 @@ struct Inner {
     python: InstancePre<RunState>,
     javascript: InstancePre<RunState>,
     stdlib: PathBuf,
+    helpers: PathBuf,
     cfg: RuntimeConfig,
     audit: Arc<dyn AuditSink>,
     _ticker: Ticker,
@@ -174,8 +183,14 @@ impl Sandbox {
         )?;
 
         let stdlib = ensure_stdlib(&cfg.vfs.cache_dir, &sandboxd_assets::PYTHON)?;
+        let helpers = ensure_helpers(&cfg.vfs.cache_dir)?;
         let bytecode_compiled = if cfg.precompile_stdlib {
-            ensure_bytecode(&engine, &py_mod, &stdlib).await?
+            let std_new = ensure_bytecode(&engine, &py_mod, &stdlib).await?;
+            // Not fatal: without bytecode the helpers load from source.
+            let helpers_new = ensure_helper_bytecode(&engine, &py_mod, &stdlib, &helpers)
+                .await
+                .unwrap_or(false);
+            std_new || helpers_new
         } else {
             false
         };
@@ -217,6 +232,7 @@ impl Sandbox {
                     python,
                     javascript,
                     stdlib,
+                    helpers,
                     cfg,
                     audit,
                     _ticker: Ticker { stop },
@@ -338,6 +354,27 @@ fn end_event(r: &RunResult, principal: &str) -> AuditEvent {
     .principal(principal)
 }
 
+/// `/dev/sandbox/info`: the policy name and which network families it grants (nothing else).
+fn register_info(vfds: &mut VirtualFdTable, policy: &Policy) {
+    let net = policy.network();
+    let info = serde_json::json!({
+        "policy": policy.name(),
+        "http": !net.http.is_empty(),
+        "tcp": !net.tcp.is_empty(),
+    });
+    let bytes: Arc<[u8]> = serde_json::to_vec(&info).unwrap_or_default().into();
+    vfds.register(
+        "info",
+        Box::new(move |rel: &str| {
+            if rel == "info" {
+                Ok(Box::new(StaticDevice::new(bytes.clone())) as Box<dyn VirtualDevice>)
+            } else {
+                Err(wasmtime_wasi::p1::types::Errno::Noent)
+            }
+        }),
+    );
+}
+
 fn ms(d: Duration) -> u64 {
     u64::try_from(d.as_millis()).unwrap_or(u64::MAX)
 }
@@ -426,6 +463,25 @@ async fn run(
             ));
         }
     };
+    if policy.network().grants_anything() && cfg.broker.is_none() {
+        let msg = "this policy grants network access, but network access is not configured on                    this runtime";
+        audit.emit(
+            AuditEvent::new(EventKind::PolicyDenied {
+                what: msg.into(),
+                requested: None,
+            })
+            .run(run_id)
+            .policy(policy.name())
+            .principal(&principal),
+        );
+        return reject(failed(
+            run_id,
+            lang,
+            policy.name(),
+            RunError::PolicyViolation(msg.into()),
+            Timings::default(),
+        ));
+    }
     let limits = *policy.limits();
     if let Some(stdin) = &req.stdin
         && stdin.len() as u64 > limits.input_bytes.bytes()
@@ -462,22 +518,17 @@ async fn run(
     // 3. Filesystem.
     let stdlib = (lang == Language::Python).then_some(inner.stdlib.as_path());
     let (file_name, argv0, pre) = match lang {
-        Language::Python => (
-            "main.py",
-            vec![
-                "python",
-                "-I",
-                "-B",
-                "-S",
-                "-X",
-                "frozen_modules=on",
-                "/code/main.py",
-            ],
-            &inner.python,
-        ),
+        Language::Python => {
+            let mut argv = vec!["python", "-I", "-B", "-S", "-X", "frozen_modules=on"];
+            if python_needs_bootstrap(policy.network().grants_anything(), &req.code) {
+                argv.extend(["-c", PYTHON_LAUNCHER]);
+            }
+            argv.push("/code/main.py");
+            ("main.py", argv, &inner.python)
+        }
         Language::JavaScript => (
             "main.mjs",
-            vec!["qjs", "-m", "/code/main.mjs"],
+            vec!["qjs", "--std", "-m", "-I", JS_BOOT, "/code/main.mjs"],
             &inner.javascript,
         ),
     };
@@ -490,6 +541,7 @@ async fn run(
         audit.clone(),
     )
     .and_then(|f| f.with_code(file_name, req.code.as_bytes()))
+    .and_then(|f| f.with_helpers(&inner.helpers))
     {
         Ok(f) => f,
         Err(e) => {
@@ -530,7 +582,38 @@ async fn run(
             Timings::default(),
         ));
     }
-    let interposer = fs.interposer(b.build_p1(), VirtualFdTable::default());
+    // Devices: `info` always (N2.3 messages), `http`/`tcp` when the policy grants them. Network
+    // time counts against the run's wall clock (N1.2): the broker shares the epoch deadline.
+    let deadline = Instant::now() + limits.wall_clock;
+    let mut vfds = VirtualFdTable::default();
+    register_info(&mut vfds, &policy);
+    let net = match cfg.broker.as_ref().map(|b| {
+        b.for_run(
+            &policy,
+            RunCtx {
+                run_id,
+                policy: policy.name().to_string(),
+                deadline,
+                audit: audit.clone(),
+            },
+        )
+    }) {
+        None | Some(Ok(None)) => None,
+        Some(Ok(Some(n))) => Some(n),
+        Some(Err(e)) => {
+            return reject(failed(
+                run_id,
+                lang,
+                policy.name(),
+                RunError::Internal(format!("network setup: {e}")),
+                Timings::default(),
+            ));
+        }
+    };
+    if let Some(n) = &net {
+        n.register(&mut vfds);
+    }
+    let interposer = fs.interposer(b.build_p1(), vfds);
 
     // 5. Store with limits.
     let mut store = Store::new(
@@ -546,7 +629,6 @@ async fn run(
     );
     store.limiter(|s| &mut s.limiter);
     let _ = store.set_fuel(limits.fuel);
-    let deadline = Instant::now() + limits.wall_clock;
     store.epoch_deadline_callback(move |_| {
         if Instant::now() >= deadline {
             Err(wasmtime::Error::new(WallClockExceeded))
@@ -621,6 +703,9 @@ async fn run(
     };
     if report.limit_hit.is_some() || collected.limit_hit.is_some() {
         limits_hit.push(LimitKind::Artifacts);
+    }
+    if net.as_ref().is_some_and(|n| n.finish().limit_hit) {
+        limits_hit.push(LimitKind::Network);
     }
     if stdout.truncated() {
         limits_hit.push(LimitKind::Stdout);

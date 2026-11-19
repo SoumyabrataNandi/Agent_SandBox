@@ -35,6 +35,8 @@ pub enum MountKind {
     Policy,
     /// The submitted program (`/code`, read-only).
     Code,
+    /// sandboxd guest helpers (`/usr/local/lib/sandboxd`, read-only): reads are summarized.
+    Helpers,
 }
 
 /// One preopened directory, in preopen (fd) order.
@@ -83,6 +85,7 @@ pub struct Interposer {
     run_id: RunId,
     policy: String,
     stdlib_reads: u64,
+    helper_reads: u64,
     /// Known interpreter start-up probes outside every mount (denied, summarized).
     quiet_probes: Vec<String>,
     quiet_denials: u64,
@@ -186,6 +189,7 @@ impl Interposer {
             run_id: parts.run_id,
             policy: parts.policy,
             stdlib_reads: 0,
+            helper_reads: 0,
             quiet_probes: parts.quiet_probes,
             quiet_denials: 0,
         }
@@ -198,6 +202,19 @@ impl Interposer {
         {
             let path = m.guest.clone();
             let n = self.stdlib_reads;
+            self.emit(
+                FsOp::Open,
+                path,
+                None,
+                Decision::Allow,
+                Some(format!("{n} reads (summary)")),
+            );
+        }
+        if self.helper_reads > 0
+            && let Some(m) = self.mounts.iter().find(|m| m.kind == MountKind::Helpers)
+        {
+            let path = m.guest.clone();
+            let n = std::mem::take(&mut self.helper_reads);
             self.emit(
                 FsOp::Open,
                 path,
@@ -336,9 +353,18 @@ impl Interposer {
         } else {
             Decision::Allow
         };
-        if decision == Decision::Allow && self.mounts[c.mount].kind == MountKind::Stdlib {
-            self.stdlib_reads += 1;
-            return;
+        if decision == Decision::Allow {
+            match self.mounts[c.mount].kind {
+                MountKind::Stdlib => {
+                    self.stdlib_reads += 1;
+                    return;
+                }
+                MountKind::Helpers => {
+                    self.helper_reads += 1;
+                    return;
+                }
+                _ => {}
+            }
         }
         let reason = errno.map(errno_name);
         self.emit(op, c.path.clone(), mode, decision, reason);
@@ -553,6 +579,22 @@ impl WasiSnapshotPreview1 for Interposer {
         m: &mut GuestMemory<'_>,
         fd: types::Fd,
     ) -> Result<types::Filestat, types::Error> {
+        if VirtualFdTable::is_virtual(u32::from(fd)) {
+            // CPython's `open()` fstat()s every fd; devices look like character devices.
+            if self.vfds.get(u32::from(fd)).is_none() {
+                return Err(Errno::Badf.into());
+            }
+            return Ok(types::Filestat {
+                dev: 0,
+                ino: 0,
+                filetype: types::Filetype::CharacterDevice,
+                nlink: 1,
+                size: 0,
+                atim: 0,
+                mtim: 0,
+                ctim: 0,
+            });
+        }
         self.inner.fd_filestat_get(m, fd).await
     }
 

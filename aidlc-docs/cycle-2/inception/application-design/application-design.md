@@ -90,6 +90,7 @@ pub fn classify_ip(ip: IpAddr) -> IpClass;               // N5.2 (handles v4-map
   - sets `sys.argv = argv[1:]`, then calls `runpy.run_path('/code/main.py', run_name='__main__')`;
   - installs a `sys.excepthook` that **trims bootstrap/runpy frames**, so tracebacks look exactly as they did in cycle 1.
 - **JavaScript:** `qjs -m /usr/local/lib/sandboxd/boot.mjs /code/main.mjs <args>`. `boot.mjs` defines `globalThis.fetch` (and `Headers`/`Response` subsets) over `qjs:os` I/O on the device, fixes `scriptArgs`, then calls `await import('/code/main.mjs')`.
+  - **Amended in C2-U3 (Q1 = A):** `qjs -m -I /usr/local/lib/sandboxd/boot.js /code/main.mjs <args>`. The include runs first as a classic script, so the program isn't wrapped and `scriptArgs` needs no fix.
 - **No network grant:** the shims are still installed and raise `PermissionError` / reject with `TypeError('network access is not allowed by policy …')`.
 
 ### ADR-C2-4 Proxies and SSRF (Q4)

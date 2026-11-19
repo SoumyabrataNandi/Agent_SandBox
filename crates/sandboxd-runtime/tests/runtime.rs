@@ -347,7 +347,16 @@ async fn twenty_concurrent_runs() {
     });
     let results = futures_join(runs.collect()).await;
     for (i, r) in results.iter().enumerate() {
-        assert_eq!(out(r), format!("{{\"i\": {i}}}\n"), "run {i}: {}", err(r));
+        assert_eq!(
+            out(r),
+            format!("{{\"i\": {i}}}\n"),
+            "run {i}: outcome {:?}, error {:?}, limits {:?}, run_ms {}, stderr {}",
+            r.outcome,
+            r.error,
+            r.limits_hit,
+            r.timings.run_ms,
+            err(r)
+        );
     }
     eprintln!("20 concurrent python runs: {:?}", t.elapsed());
 }

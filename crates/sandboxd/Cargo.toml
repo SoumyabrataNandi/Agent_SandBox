@@ -19,6 +19,7 @@ sandboxd-policy.workspace = true
 sandboxd-runtime.workspace = true
 sandboxd-server.workspace = true
 sandboxd-vfs.workspace = true
+sandboxd-net.workspace = true
 rmcp.workspace = true
 axum.workspace = true
 clap.workspace = true

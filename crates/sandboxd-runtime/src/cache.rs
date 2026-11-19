@@ -163,6 +163,55 @@ pub(crate) async fn ensure_bytecode(
     if marker.is_file() {
         return Ok(false);
     }
+    compileall(
+        engine,
+        module,
+        &[(stdlib, sandboxd_policy::STDLIB_GUEST_PATH, true)],
+        sandboxd_policy::STDLIB_GUEST_PATH,
+    )
+    .await?;
+    std::fs::write(&marker, "ok")
+        .map_err(|e| RuntimeError::Io(format!("write {}: {e}", marker.display())))?;
+    Ok(true)
+}
+
+/// Compile the Python guest helpers to `__pycache__` (unchecked-hash) with this interpreter.
+/// The marker holds the interpreter's asset hash, so a new CPython recompiles them. Failure is not
+/// fatal for the caller: the helpers then load from source (slower, same behaviour).
+pub(crate) async fn ensure_helper_bytecode(
+    engine: &Engine,
+    module: &Module,
+    stdlib: &Path,
+    helpers: &Path,
+) -> Result<bool, RuntimeError> {
+    let marker = helpers.join(".pyc-complete");
+    let want = sandboxd_assets::PYTHON.sha256;
+    if std::fs::read_to_string(&marker).is_ok_and(|m| m == want) {
+        return Ok(false);
+    }
+    compileall(
+        engine,
+        module,
+        &[
+            (stdlib, sandboxd_policy::STDLIB_GUEST_PATH, false),
+            (helpers, sandboxd_policy::HELPER_GUEST_PATH, true),
+        ],
+        sandboxd_policy::HELPER_GUEST_PATH,
+    )
+    .await?;
+    std::fs::write(&marker, want)
+        .map_err(|e| RuntimeError::Io(format!("write {}: {e}", marker.display())))?;
+    Ok(true)
+}
+
+/// Run `python -m compileall -f -q --invalidation-mode unchecked-hash <target>` in a sandbox with
+/// the given (host dir, guest path, writable) preopens.
+async fn compileall(
+    engine: &Engine,
+    module: &Module,
+    mounts: &[(&Path, &str, bool)],
+    target: &str,
+) -> Result<(), RuntimeError> {
     use wasmtime_wasi::{FsPerms, WasiCtxBuilder, p2::pipe::MemoryOutputPipe};
     let err = MemoryOutputPipe::new(1 << 20);
     let mut b = WasiCtxBuilder::new();
@@ -172,18 +221,22 @@ pub(crate) async fn ensure_bytecode(
         "-S",
         "-m",
         "compileall",
+        "-f",
         "-q",
         "--invalidation-mode",
         "unchecked-hash",
-        sandboxd_policy::STDLIB_GUEST_PATH,
+        target,
     ])
-    .stderr(err.clone())
-    .preopened_dir(
-        stdlib,
-        sandboxd_policy::STDLIB_GUEST_PATH,
-        FsPerms::ReadWrite,
-    )
-    .map_err(|e| RuntimeError::Io(format!("preopen stdlib: {e}")))?;
+    .stderr(err.clone());
+    for (host, guest, writable) in mounts {
+        let perms = if *writable {
+            FsPerms::ReadWrite
+        } else {
+            FsPerms::ReadOnly
+        };
+        b.preopened_dir(host, guest, perms)
+            .map_err(|e| RuntimeError::Io(format!("preopen {guest}: {e}")))?;
+    }
     let ctx = b.build_p1();
     let mut linker: wasmtime::Linker<wasmtime_wasi::p1::WasiP1Ctx> = wasmtime::Linker::new(engine);
     wasmtime_wasi::p1::add_to_linker_async(&mut linker, |c| c)
@@ -215,7 +268,5 @@ pub(crate) async fn ensure_bytecode(
             }
         }
     }
-    std::fs::write(&marker, "ok")
-        .map_err(|e| RuntimeError::Io(format!("write {}: {e}", marker.display())))?;
-    Ok(true)
+    Ok(())
 }

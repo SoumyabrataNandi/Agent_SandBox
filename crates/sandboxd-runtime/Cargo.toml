@@ -13,6 +13,8 @@ sandboxd-assets.workspace = true
 sandboxd-audit.workspace = true
 sandboxd-policy.workspace = true
 sandboxd-vfs.workspace = true
+sandboxd-net.workspace = true
+serde_json.workspace = true
 wasmtime.workspace = true
 wasmtime-wasi.workspace = true
 tokio.workspace = true
@@ -24,6 +26,11 @@ thiserror.workspace = true
 
 [dev-dependencies]
 sandboxd-audit = { workspace = true, features = ["testing"] }
+axum.workspace = true
+rcgen.workspace = true
+rustls.workspace = true
+serde.workspace = true
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
 
 [lints]
 workspace = true

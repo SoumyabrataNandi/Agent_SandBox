@@ -141,6 +141,9 @@ mod status {
 }
 
 fn main() -> ExitCode {
+    // Process-wide rustls provider: needed by the network broker and by rmcp's HTTP client
+    // (feature-unified reqwest TLS). Idempotent.
+    sandboxd_net::ensure_crypto_provider();
     let cli = Cli::parse();
     let _ = tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
@@ -275,6 +278,7 @@ async fn build(
     let policies = load_policies(cfg, &desc)?;
     let rc = RuntimeConfig {
         vfs: vfs_config(cfg),
+        broker: network_broker(&cfg.network)?,
         ..RuntimeConfig::default()
     };
     let (sandbox, report) = Sandbox::new(rc, audit.clone())
@@ -290,6 +294,31 @@ async fn build(
         audit_writer: writer,
         audit_desc: desc,
     })
+}
+
+/// The egress broker from `[network]`, or `None` when the kill switch is off (policies that grant
+/// egress are then already refused at load).
+fn network_broker(
+    n: &sandboxd_server::NetworkConfig,
+) -> Result<Option<Arc<sandboxd_net::Broker>>, String> {
+    if !n.enabled {
+        return Ok(None);
+    }
+    let extra_ca_pem = match &n.extra_ca_file {
+        Some(p) => Some(
+            std::fs::read(p)
+                .map_err(|e| format!("[network] extra_ca_file {}: {e}", p.display()))?,
+        ),
+        None => None,
+    };
+    let broker = sandboxd_net::Broker::new(sandboxd_net::BrokerConfig {
+        proxy: n.proxy.clone(),
+        no_proxy: n.no_proxy.clone(),
+        use_env_proxy: n.use_env_proxy,
+        extra_ca_pem,
+    })
+    .map_err(|e| format!("[network]: {e}"))?;
+    Ok(Some(Arc::new(broker)))
 }
 
 fn version() -> ExitCode {
@@ -319,7 +348,7 @@ async fn cache(c: CacheCmd, cfg: &ServerConfig) -> ExitCode {
             ExitCode::SUCCESS
         }
         CacheCmd::Clear => {
-            for sub in ["modules", "stdlib"] {
+            for sub in ["modules", "stdlib", "helpers"] {
                 let p = v.cache_dir.join(sub);
                 match std::fs::remove_dir_all(&p) {
                     Ok(()) => println!("removed {}", p.display()),

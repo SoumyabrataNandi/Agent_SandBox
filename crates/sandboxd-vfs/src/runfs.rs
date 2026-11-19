@@ -230,13 +230,29 @@ impl RunFs {
         Ok(self)
     }
 
+    /// Mount the sandboxd guest helpers (host dir from the runtime's helper cache) read-only at
+    /// [`sandboxd_policy::HELPER_GUEST_PATH`]. Call before [`Self::preopen`].
+    pub fn with_helpers(mut self, host_dir: &Path) -> Result<Self, VfsError> {
+        if self.mounts.iter().any(|m| m.kind == MountKind::Helpers) {
+            return Err(VfsError::InvalidInput("helpers already mounted".into()));
+        }
+        self.mounts.push(MountInfo {
+            guest: sandboxd_policy::HELPER_GUEST_PATH.into(),
+            host: host_dir.to_path_buf(),
+            kind: MountKind::Helpers,
+        });
+        Ok(self)
+    }
+
     /// Add every preopen to `builder`, in the order the interposer expects.
     pub fn preopen(&self, builder: &mut WasiCtxBuilder, policy: &Policy) -> Result<(), VfsError> {
         for m in &self.mounts {
             let perms = match m.kind {
-                MountKind::CatchAll | MountKind::Stdlib | MountKind::Inputs | MountKind::Code => {
-                    FsPerms::ReadOnly
-                }
+                MountKind::CatchAll
+                | MountKind::Stdlib
+                | MountKind::Inputs
+                | MountKind::Code
+                | MountKind::Helpers => FsPerms::ReadOnly,
                 MountKind::Outputs => FsPerms::ReadWrite,
                 MountKind::Policy => {
                     let rw = policy

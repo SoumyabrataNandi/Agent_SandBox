@@ -278,3 +278,17 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Implemented sandboxd-net (ip, target, resolve, frame, http, tcp, lib) + VirtualDevice::opened / async VirtualFdTable::open. 26 broker tests (in-process HTTP/HTTPS-with-test-CA/TCP servers) pass; SSRF/redirect/header/quota/TLS/TCP cases verified with "server saw 0 requests". Fixed during implementation: reqwest retries disabled; system proxy never implicit; TLS error classification through io::Error::get_ref; ring provider (ADR-C2-1 amendment); ISC + CDLA re-allowed in deny.toml; feature-unification regression (rmcp client needed a crypto provider) fixed via ensure_crypto_provider(). Workspace 133 tests pass; clippy, fmt, cargo-deny clean. Awaiting approval.
 
 ---
+
+## C2-U2 approved; C2-U3 design issued
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: C2-U2 marked approved (commit fe6d08a pushed). Probed the real guests: eager `import urllib.request` costs ~0.9 s (debug), so Python patching must be lazy (meta-path hook); CPython `open()` on a virtual fd fails (fd_filestat_get → EBADF), so the interposer gets a fix; QuickJS-ng has `qjs:os` and `-I/--include` but no TextEncoder/TextDecoder. Generated cycle-2/construction/c2-u3-guest-integration/design.md (launch lines, boot.py with frame trimming, lazy http.client/socket patches, device socket with synthesized responses, error mapping, /dev/sandbox/info for N2.3, boot.mjs fetch/Headers/Response, helper embedding + hash-keyed mount, runtime/binary wiring, test plan) and design-questions.md (8 questions). Proposed ADR-C2-3 amendment: JS uses `qjs -I`. Awaiting answers.
+
+---
+
+## C2-U3 — answers, code, build & test
+**Timestamp**: 2026-11-19
+**User Input**: "accept recommended defaults" (Q1–Q8)
+**AI Response**: Implemented guest helpers (sandboxd_boot.py, sandbox_net.py, boot.js, fetch.js), hash-keyed helper cache with in-sandbox .pyc compilation, /dev/sandbox/info, runtime broker wiring (RuntimeConfig.broker, LimitKind::Network, grants-without-broker refusal), VFS Helpers mount + fd_filestat_get on virtual fds + StaticDevice, binary broker/crypto-provider wiring; removed the NetworkBroker seam. Findings fixed: excepthook ignores tb (traceback trimming), half-built HTTPResponse on failure, qjs -I includes are classic scripts, JS method bug. NFR-N3: first version cost +31M fuel (Python) / +8.8M (JS); root cause for Python = first builtins.compile() initializes AST types (~22M); decision: Python bootstrap only when the policy grants network or code mentions networking modules, otherwise cycle-1 launch (final: 58.07M vs 58.03M baseline); JS lazy fetch.js (+1.4M). 19 new tests pass; all cycle-1 runtime/VFS/server tests and escape suite 17/17 pass; clippy, fmt, cargo-deny clean. One unreproduced flake (twenty_concurrent_runs, under parallel load) got better diagnostics. Awaiting approval.
+
+---
