@@ -425,3 +425,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Instantiation of the snapshot costs 9.75M fuel ~= its 9.82 MB data section; no start section. wasmtime 50 initialises data segments with a compiled startup function (fuel-charged) unless the memory has a copy-on-write image, and only builds the image when the initialised range is dense or <= memory_guaranteed_dense_image_size (default 16 MiB). Wizer snapshots are large sparse heaps, so every instantiation copied all data. Set memory_guaranteed_dense_image_size(128 MiB) in the spike engine and in sandboxd's runtime engine (production snapshots need it). Re-running.
 
 ---
+
+## C3-U1 spike run 11 (4dfeabb): exit criteria met
+**Timestamp**: 2026-11-19
+**User Input**: (none)
+**AI Response**: Python print(1) 1.83 ms vs 29.2 ms (16x), 1.73M vs 54.8M fuel (32x), instantiation 0 fuel; 10/10 byte-identical; random re-seeded. JavaScript 0.41 vs 1.06 ms (2.6x), 65k vs 3.63M fuel, 5/5 identical. Local runtime suites pass with the new engine setting. Summary: cycle-3/construction/c3-u1-snapshot-spike/spike-summary.md. Recommending GO; awaiting the user's decision.
+
+---
