@@ -369,3 +369,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: C3-U2 marked approved (a76ef15). Waiting for spike run 2 (a76ef15) report on ci-results.
 
 ---
+
+## Repository made public; spike cancellations explained
+**Timestamp**: 2026-11-19
+**User Input**: "Ok make it public now" / "I make it public alreadyt"
+**AI Response**: Pre-publication scan: no secrets in files or history (only redactor test fixtures); flagged personal details (commit author email, verbatim audit quotes, host description). User switched the repo to public (verified via anonymous API: visibility public). Actions API annotations show the spike and ci runs were "canceled by @SoumyabrataNandi" ~15–20 s after start, not by GitHub. Re-triggering the spike; asked the user to let runs finish (public repos have free Actions minutes).
+
+---

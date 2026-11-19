@@ -3,6 +3,9 @@
 # Built only in CI (.github/workflows/interpreters.yml). Every download is verified against its
 # sha256. An empty sha256 is allowed only during the C3-U1 spike: the build prints the digest it
 # saw, and the digest must be pinned here before C3-U3 (release mode refuses empty pins).
+#
+# The wasi_sdk, wasmtime_cli and cpython pins below were recorded from CI's first download
+# (spike run 6e60851); they are cross-checked against the upstream-published digests in C3-U3.
 
 [wasi_sdk]
 version = "33"
