@@ -4,8 +4,8 @@
 - **Project**: sandboxd — WebAssembly sandbox for agent-generated code
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
-- **Current Phase**: CONSTRUCTION complete → OPERATIONS (placeholder)
-- **Current Stage**: Build & Test complete — cycle 1 (Phases 1–3) awaiting final approval
+- **Current Phase**: Cycle 1 COMPLETE (approved 2026-11-19) → OPERATIONS (placeholder)
+- **Current Stage**: Done. Next cycle candidates: OTLP exporter, Phase 4 network broker, Phase 5 performance
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -34,7 +34,7 @@ ustup + D:devrgo (user env vars); WSL route dropped (user request, storage); po
 - [x] Build and Test (all units)
 
 ### 🟡 OPERATIONS PHASE
-- [ ] Operations — placeholder
+- [ ] Operations — placeholder (release via `v*` tag; see build-and-test summary)
 
 ## Construction Progress
 | Unit | Status |
@@ -45,4 +45,4 @@ ustup + D:devrgo (user env vars); WSL route dropped (user request, storage); po
 | U3 VFS | ✅ Approved 2026-11-18 |
 | U4 Runtime | ✅ Approved 2026-11-18 |
 | U5 Server + CLI | ✅ Approved 2026-11-18 |
-| U6 Escape suite + release | Built & tested (17 escape tests; 2 defects fixed) — awaiting approval |
+| U6 Escape suite + release | ✅ Approved 2026-11-19 |
