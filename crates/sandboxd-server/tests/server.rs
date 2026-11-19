@@ -510,6 +510,8 @@ async fn ac7_mcp_tools_artifacts_and_progress() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn ac7_mcp_over_http_with_token_and_principal() {
+    // TLS is compiled into reqwest (broker); rmcp's client needs the process crypto provider.
+    sandboxd_net::ensure_crypto_provider();
     let audit = Arc::new(MemorySink::default());
     let svc = service_with(audit.clone(), AdmissionConfig::default());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")

@@ -33,6 +33,7 @@ thiserror.workspace = true
 toml.workspace = true
 
 [dev-dependencies]
+sandboxd-net.workspace = true
 sandboxd-audit = { workspace = true, features = ["testing"] }
 tower = { workspace = true, features = ["util"] }
 

@@ -264,3 +264,17 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: C2-U1 (combined design+code): policy scheme/timeouts/kill switch/helper path, ensure_supported accepts grants, max_requests default 0→100 (latent defect), audit LimitKind::Network + net.request fields + net.connect, server [network] config, CLI wiring. 107 workspace tests pass, clippy clean. Summary: cycle-2/construction/c2-u1-policy-config-audit/design-and-summary.md. Awaiting approval.
 
 ---
+
+## C2-U1 approved; C2-U2 design issued
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: Confirmed reqwest 0.13 APIs (Resolve, remote_addr, chunk, tls_certs_merge, retry, Proxy/NoProxy). Generated cycle-2/construction/c2-u2-net-broker/design.md (URL rules U1–U6, allowlist, SSRF classes incl. metadata endpoints and IPv6 transition, pinning resolver, exchange H1–H7, device state machine, TCP, audit, API, tests) and design-questions.md (7 questions). Note: reqwest retries must be disabled (an un-audited retry is an extra request). Awaiting answers.
+
+---
+
+## C2-U2 — answers, code, build & test
+**Timestamp**: 2026-11-19
+**User Input**: "accept recommended defaults" (Q1–Q7)
+**AI Response**: Implemented sandboxd-net (ip, target, resolve, frame, http, tcp, lib) + VirtualDevice::opened / async VirtualFdTable::open. 26 broker tests (in-process HTTP/HTTPS-with-test-CA/TCP servers) pass; SSRF/redirect/header/quota/TLS/TCP cases verified with "server saw 0 requests". Fixed during implementation: reqwest retries disabled; system proxy never implicit; TLS error classification through io::Error::get_ref; ring provider (ADR-C2-1 amendment); ISC + CDLA re-allowed in deny.toml; feature-unification regression (rmcp client needed a crypto provider) fixed via ensure_crypto_provider(). Workspace 133 tests pass; clippy, fmt, cargo-deny clean. Awaiting approval.
+
+---

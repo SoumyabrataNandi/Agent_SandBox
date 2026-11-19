@@ -16,6 +16,11 @@ pub trait VirtualDevice: Send {
     fn write<'a>(&'a mut self, buf: &'a [u8]) -> DeviceFuture<'a, usize>;
     /// Called once when the guest closes the fd.
     fn close(&mut self) -> DeviceFuture<'_, ()>;
+    /// Called once right after the factory created the device, before the fd is handed to the
+    /// guest. Async setup (e.g. a TCP connect) happens here so failures surface at `open`.
+    fn opened(&mut self) -> DeviceFuture<'_, ()> {
+        Box::pin(async { Ok(()) })
+    }
 }
 
 /// Opens a device for a path relative to `/dev/sandbox` (e.g. `http`, `tcp/db:5432`).
@@ -53,10 +58,11 @@ impl VirtualFdTable {
     }
 
     /// Open `rel` (path under `/dev/sandbox`). `ENOENT` if no device family matches.
-    pub fn open(&mut self, rel: &str) -> Result<u32, Errno> {
+    pub async fn open(&mut self, rel: &str) -> Result<u32, Errno> {
         let family = rel.split('/').next().unwrap_or_default();
         let factory = self.factories.get(family).ok_or(Errno::Noent)?;
-        let dev = factory(rel)?;
+        let mut dev = factory(rel)?;
+        dev.opened().await?;
         let fd = VFD_BASE + self.next;
         self.next = self.next.checked_add(1).ok_or(Errno::Mfile)?;
         self.open.insert(fd, dev);

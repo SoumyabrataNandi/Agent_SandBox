@@ -859,7 +859,7 @@ impl WasiSnapshotPreview1 for Interposer {
                 .trim_start_matches('/')
                 .to_string();
             let path = chk.path.clone();
-            return match self.vfds.open(&rel) {
+            return match self.vfds.open(&rel).await {
                 Ok(vfd) => {
                     self.emit(
                         FsOp::Open,
