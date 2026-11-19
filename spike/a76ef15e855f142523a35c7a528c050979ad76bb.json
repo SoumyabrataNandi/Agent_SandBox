@@ -1,0 +1,16 @@
+{
+  "error": "no spike report: [Errno 2] No such file or directory: 'spike-report.json'",
+  "go": false,
+  "ci": {
+    "sha": "a76ef15e855f142523a35c7a528c050979ad76bb",
+    "run_id": "44546004360",
+    "python_build": "skipped",
+    "quickjs_build": "skipped",
+    "spike": "skipped",
+    "digests": null,
+    "python_link": null,
+    "python_build_log_tail": null,
+    "quickjs_build_log_tail": null,
+    "spike_log_tail": null
+  }
+}
