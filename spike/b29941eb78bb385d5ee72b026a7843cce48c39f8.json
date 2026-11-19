@@ -1,0 +1,408 @@
+{
+  "go": false,
+  "javascript": {
+    "compat": [
+      {
+        "equal": true,
+        "name": "print",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 66268,
+          "stderr": "",
+          "stdout": "1\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 3630910,
+          "stderr": "",
+          "stdout": "1\n"
+        }
+      },
+      {
+        "equal": true,
+        "name": "args",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 106865,
+          "stderr": "",
+          "stdout": "[\"/code/main.mjs\",\"x\"]\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 3661472,
+          "stderr": "",
+          "stdout": "[\"/code/main.mjs\",\"x\"]\n"
+        }
+      },
+      {
+        "equal": true,
+        "name": "throw",
+        "snapshot": {
+          "exit": 1,
+          "fuel": 115493,
+          "stderr": "Error: boom\n    at g (/code/main.mjs:1:26)\n    at <anonymous> (/code/main.mjs:2:1)\n\n",
+          "stdout": ""
+        },
+        "upstream": {
+          "exit": 1,
+          "fuel": 3686779,
+          "stderr": "Error: boom\n    at g (/code/main.mjs:1:26)\n    at <anonymous> (/code/main.mjs:2:1)\n\n",
+          "stdout": ""
+        }
+      },
+      {
+        "equal": true,
+        "name": "globals",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 8207625,
+          "stderr": "",
+          "stdout": "function function undefined undefined\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 12010231,
+          "stderr": "",
+          "stdout": "function function undefined undefined\n"
+        }
+      },
+      {
+        "equal": true,
+        "name": "async",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 108298,
+          "stderr": "",
+          "stdout": "after await\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 3673007,
+          "stderr": "",
+          "stdout": "after await\n"
+        }
+      }
+    ],
+    "compat_all_equal": true,
+    "snapshot_module_bytes": 1664196,
+    "snapshot_print_fuel": 65387,
+    "snapshot_print_ms_median": 0.47962200000000005,
+    "speedup": 2.350699092201775,
+    "upstream_print_fuel": 3627865,
+    "upstream_print_ms_median": 1.1274469999999999
+  },
+  "python": {
+    "compat": [
+      {
+        "equal": true,
+        "name": "print",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 77580381,
+          "stderr": "",
+          "stdout": "1\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 120180017,
+          "stderr": "",
+          "stdout": "1\n"
+        }
+      },
+      {
+        "equal": true,
+        "name": "traceback",
+        "snapshot": {
+          "exit": 1,
+          "fuel": 654731210,
+          "stderr": "Traceback (most recent call last):\n  File \"/code/main.py\", line 7, in <module>\n    g()\n    ~^^\n  File \"/code/main.py\", line 5, in g\n    f()\n    ~^^\n  File \"/code/main.py\", line 2, in f\n    return 1 / 0\n           ~~^~~\nZeroDivisionError: division by zero\n",
+          "stdout": ""
+        },
+        "upstream": {
+          "exit": 1,
+          "fuel": 2245792614,
+          "stderr": "Traceback (most recent call last):\n  File \"/code/main.py\", line 7, in <module>\n    g()\n    ~^^\n  File \"/code/main.py\", line 5, in g\n    f()\n    ~^^\n  File \"/code/main.py\", line 2, in f\n    return 1 / 0\n           ~~^~~\nZeroDivisionError: division by zero\n",
+          "stdout": ""
+        }
+      },
+      {
+        "equal": true,
+        "name": "syntax-error",
+        "snapshot": {
+          "exit": 1,
+          "fuel": 651695504,
+          "stderr": "  File \"/code/main.py\", line 1\n    x = (\n        ^\nSyntaxError: '(' was never closed\n",
+          "stdout": ""
+        },
+        "upstream": {
+          "exit": 1,
+          "fuel": 2243588330,
+          "stderr": "  File \"/code/main.py\", line 1\n    x = (\n        ^\nSyntaxError: '(' was never closed\n",
+          "stdout": ""
+        }
+      },
+      {
+        "equal": true,
+        "name": "sys-exit",
+        "snapshot": {
+          "exit": 3,
+          "fuel": 77745165,
+          "stderr": "",
+          "stdout": "bye\n"
+        },
+        "upstream": {
+          "exit": 3,
+          "fuel": 119817889,
+          "stderr": "",
+          "stdout": "bye\n"
+        }
+      },
+      {
+        "equal": true,
+        "name": "argv-env",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 78289487,
+          "stderr": "",
+          "stdout": "['/code/main.py', 'a1', 'b2']\nbar UTC ['FOO', 'TZ']\nb'bar'\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 140788141,
+          "stderr": "",
+          "stdout": "['/code/main.py', 'a1', 'b2']\nbar UTC ['FOO', 'TZ']\nb'bar'\n"
+        }
+      },
+      {
+        "equal": true,
+        "name": "main-module",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 77941722,
+          "stderr": "",
+          "stdout": "__main__ /code/main.py False 1 1 True\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 120160687,
+          "stderr": "",
+          "stdout": "__main__ /code/main.py False 1 1 True\n"
+        }
+      },
+      {
+        "equal": true,
+        "name": "workload",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 79171611,
+          "stderr": "",
+          "stdout": "{\"rows\": [[\"a\", \"b\"], [\"1\", \"2\"], [\"3\", \"4\"]], \"mean\": 2} a#b# 2026-01-02\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 2106705855,
+          "stderr": "",
+          "stdout": "{\"rows\": [[\"a\", \"b\"], [\"1\", \"2\"], [\"3\", \"4\"]], \"mean\": 2} a#b# 2026-01-02\n"
+        }
+      },
+      {
+        "equal": true,
+        "name": "atexit-and-stderr",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 78242816,
+          "stderr": "to stderr\n",
+          "stdout": "atexit ran\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 120668432,
+          "stderr": "to stderr\n",
+          "stdout": "atexit ran\n"
+        }
+      },
+      {
+        "equal": true,
+        "name": "chained",
+        "snapshot": {
+          "exit": 1,
+          "fuel": 654134182,
+          "stderr": "Traceback (most recent call last):\n  File \"/code/main.py\", line 2, in <module>\n    {}['k']\n    ~~^^^^^\nKeyError: 'k'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/code/main.py\", line 4, in <module>\n    raise ValueError('wrapped') from e\nValueError: wrapped\n",
+          "stdout": ""
+        },
+        "upstream": {
+          "exit": 1,
+          "fuel": 2246038206,
+          "stderr": "Traceback (most recent call last):\n  File \"/code/main.py\", line 2, in <module>\n    {}['k']\n    ~~^^^^^\nKeyError: 'k'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/code/main.py\", line 4, in <module>\n    raise ValueError('wrapped') from e\nValueError: wrapped\n",
+          "stdout": ""
+        }
+      },
+      {
+        "equal": true,
+        "name": "files",
+        "snapshot": {
+          "exit": 0,
+          "fuel": 78128548,
+          "stderr": "",
+          "stdout": "['main.py']\nimport os\n"
+        },
+        "upstream": {
+          "exit": 0,
+          "fuel": 141341334,
+          "stderr": "",
+          "stdout": "['main.py']\nimport os\n"
+        }
+      }
+    ],
+    "compat_all_equal": true,
+    "custom_module_bytes": 8109642,
+    "go": false,
+    "random_differs": true,
+    "snapshot_build_ms": 4176.616057,
+    "snapshot_module_bytes": 17138108,
+    "snapshot_print_fuel": 77575082,
+    "snapshot_print_ms_median": 23.460833,
+    "speedup": 1.6201087574341457,
+    "upstream_print_fuel": 120116699,
+    "upstream_print_ms_median": 38.009101
+  },
+  "ci": {
+    "sha": "b29941eb78bb385d5ee72b026a7843cce48c39f8",
+    "run_id": "44550260127",
+    "python_build": "success",
+    "quickjs_build": "success",
+    "spike": "success",
+    "job_status": "success",
+    "steps": {
+      "setup_python": "success",
+      "toolchain": "success",
+      "assets_cache": "success",
+      "assets": "success",
+      "interp_cache": "success",
+      "rust_cache": "success",
+      "resources": "success",
+      "py": "success",
+      "qjs": "success",
+      "spike": "success"
+    },
+    "resources": [
+      "Filesystem      Size  Used Avail Use% Mounted on",
+      "/dev/root       145G   61G   84G  43% /",
+      "/dev/root       145G   61G   84G  43% /",
+      "               total        used        free      shared  buff/cache   available",
+      "Mem:           15983        1805        9802          47        4767       14177",
+      "Swap:           3071           0        3071",
+      "4"
+    ],
+    "digests": [
+      "wasi_sdk 0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce",
+      "wasmtime_cli 5db0ca8e838ab95a51ba9acdf11f42888bcd0092dda45a86129ae540c4fa952c",
+      "cpython f74e1db0eabd651cd01e4e2a00201bd41866abe74869ab716f9bf33cbbaa0943",
+      "wasi_sdk 0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce",
+      "quickjs 28bcd89aa3683fd2a946537e5ce3f11cc46b5cbf3383c7561aaef3df5ff9f1dd"
+    ],
+    "python_link": [
+      "python.wasm link (reference):  /home/runner/.cache/sandboxd-interp/wasi-sdk-33/bin/clang   -z stack-size=16777216 -Wl,--stack-first -Wl,--initial-memory=41943040   |  | -z stack-size=16777216 -Wl,--stack-first -Wl,--initial-memory=41943040",
+      "CC=/home/runner/.cache/sandboxd-interp/wasi-sdk-33/bin/clang",
+      "CFLAGS=-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer  -fno-strict-overflow -Wsign-compare -Wunreachable-code -DNDEBUG -g -O3 -Wall    -IObjects -IInclude -IPython -I. -I../../Include  ",
+      "LINKCC= /home/runner/.cache/sandboxd-interp/wasi-sdk-33/bin/clang",
+      "LDFLAGS=  -z stack-size=16777216 -Wl,--stack-first -Wl,--initial-memory=41943040  ",
+      "LIBS=libpython3.15.a -ldl  -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lpthread             -lm -lm -lm  Modules/_hacl/libHacl_Hash_MD5.a Modules/_hacl/libHacl_Hash_SHA1.a Modules/_hacl/libHacl_Hash_SHA2.a Modules/_hacl/libHacl_Hash_SHA3.a Modules/_hacl/libHacl_Hash_BLAKE2.a Modules/_hacl/libHacl_HMAC.a -lm Modules/expat/libexpat.a                           -lm                     -lm "
+    ],
+    "python_build_log_tail": [
+      ">> wasi-sdk: /home/runner/.cache/sandboxd-interp/wasi-sdk-33",
+      ">> CPython WASI build dir: /home/runner/.cache/sandboxd-interp/cpython-3.15.2/cross-build/wasm32-wasip1",
+      "-rwxr-xr-x 1 runner runner 8109642 Nov 19 15:03 /home/runner/work/Agent_SandBox/Agent_SandBox/dist/sandboxd-python.wasm"
+    ],
+    "quickjs_build_log_tail": [
+      ">> wasi-sdk: /home/runner/.cache/sandboxd-interp/wasi-sdk-33",
+      "--   BUILD_SHARED_LIBS: OFF",
+      "--   QJS_ENABLE_INSTALL: ON",
+      "--   QJS_BUILD_WERROR: OFF",
+      "--   QJS_BUILD_EXAMPLES: OFF",
+      "--   QJS_BUILD_CLI_STATIC: OFF",
+      "--   QJS_BUILD_CLI_WITH_MIMALLOC: OFF",
+      "--   QJS_BUILD_CLI_WITH_STATIC_MIMALLOC: OFF",
+      "--   QJS_DISABLE_PARSER: OFF",
+      "--   QJS_ENABLE_ASAN: OFF",
+      "--   QJS_ENABLE_MSAN: OFF",
+      "--   QJS_ENABLE_TSAN: OFF",
+      "--   QJS_ENABLE_UBSAN: OFF",
+      "--   QJS_ENABLE_GC_STRESS: OFF",
+      "-- Building in Release mode",
+      "-- Building with Clang 22.1.0 on WASI-1",
+      "-- Performing Test COMPILER_SUPPORTS_Wformat=2",
+      "-- Performing Test COMPILER_SUPPORTS_Wformat=2 - Success",
+      "--   QJS_BUILD_LIBC: OFF",
+      "-- Configuring done (0.6s)",
+      "-- Generating done (0.0s)",
+      "-- Build files have been written to: /home/runner/.cache/sandboxd-interp/quickjs-0.18.0/build-wasi",
+      "[ 45%] Built target qjs",
+      "[ 63%] Built target qjs-libc",
+      "[100%] Built target qjs_exe",
+      "-rwxr-xr-x 1 runner runner 1541523 Nov 19 15:03 /home/runner/work/Agent_SandBox/Agent_SandBox/dist/sandboxd-qjs.wasm"
+    ],
+    "spike_log_tail": [
+      "        \"name\": \"atexit-and-stderr\",",
+      "        \"snapshot\": {",
+      "          \"exit\": 0,",
+      "          \"fuel\": 78242816,",
+      "          \"stderr\": \"to stderr\\n\",",
+      "          \"stdout\": \"atexit ran\\n\"",
+      "        },",
+      "        \"upstream\": {",
+      "          \"exit\": 0,",
+      "          \"fuel\": 120668432,",
+      "          \"stderr\": \"to stderr\\n\",",
+      "          \"stdout\": \"atexit ran\\n\"",
+      "        }",
+      "      },",
+      "      {",
+      "        \"equal\": true,",
+      "        \"name\": \"chained\",",
+      "        \"snapshot\": {",
+      "          \"exit\": 1,",
+      "          \"fuel\": 654134182,",
+      "          \"stderr\": \"Traceback (most recent call last):\\n  File \\\"/code/main.py\\\", line 2, in <module>\\n    {}['k']\\n    ~~^^^^^\\nKeyError: 'k'\\n\\nThe above exception was the direct cause of the following exception:\\n\\nTraceback (most recent call last):\\n  File \\\"/code/main.py\\\", line 4, in <module>\\n    raise ValueError('wrapped') from e\\nValueError: wrapped\\n\",",
+      "          \"stdout\": \"\"",
+      "        },",
+      "        \"upstream\": {",
+      "          \"exit\": 1,",
+      "          \"fuel\": 2246038206,",
+      "          \"stderr\": \"Traceback (most recent call last):\\n  File \\\"/code/main.py\\\", line 2, in <module>\\n    {}['k']\\n    ~~^^^^^\\nKeyError: 'k'\\n\\nThe above exception was the direct cause of the following exception:\\n\\nTraceback (most recent call last):\\n  File \\\"/code/main.py\\\", line 4, in <module>\\n    raise ValueError('wrapped') from e\\nValueError: wrapped\\n\",",
+      "          \"stdout\": \"\"",
+      "        }",
+      "      },",
+      "      {",
+      "        \"equal\": true,",
+      "        \"name\": \"files\",",
+      "        \"snapshot\": {",
+      "          \"exit\": 0,",
+      "          \"fuel\": 78128548,",
+      "          \"stderr\": \"\",",
+      "          \"stdout\": \"['main.py']\\nimport os\\n\"",
+      "        },",
+      "        \"upstream\": {",
+      "          \"exit\": 0,",
+      "          \"fuel\": 141341334,",
+      "          \"stderr\": \"\",",
+      "          \"stdout\": \"['main.py']\\nimport os\\n\"",
+      "        }",
+      "      }",
+      "    ],",
+      "    \"compat_all_equal\": true,",
+      "    \"custom_module_bytes\": 8109642,",
+      "    \"go\": false,",
+      "    \"random_differs\": true,",
+      "    \"snapshot_build_ms\": 4176.616057,",
+      "    \"snapshot_module_bytes\": 17138108,",
+      "    \"snapshot_print_fuel\": 77575082,",
+      "    \"snapshot_print_ms_median\": 23.460833,",
+      "    \"speedup\": 1.6201087574341457,",
+      "    \"upstream_print_fuel\": 120116699,",
+      "    \"upstream_print_ms_median\": 38.009101",
+      "  }",
+      "}"
+    ]
+  }
+}
