@@ -4,15 +4,14 @@
 - **Project**: sandboxd — WebAssembly sandbox for agent-generated code
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
-- **Current Phase**: Cycle 2 — CONSTRUCTION
-- **Current Stage**: C2-U5 E-NET + release built & tested — awaiting approval
+- **Current Phase**: Cycle 2 — COMPLETE (closed 2026-11-19)
+- **Current Stage**: Cycle 2 closed — next: cycle 3 (Phase 5 performance), starting from requirements
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
 - **Reverse Engineering Needed**: No
 - **Workspace Root**: d:\Agent-SandBox
-- **Toolchain**: Rust 1.100.0 at D:dev
-ustup + D:devrgo (user env vars); WSL route dropped (user request, storage); portable MSVC 14.52 at D:devmsvc (load via scripts/dev-env.ps1)
+- **Toolchain**: Rust 1.100.0 at D:\dev\rustup + D:\dev\cargo (user env vars); WSL route dropped (user request, storage); portable MSVC 14.52 at D:\dev\msvc (load via scripts/dev-env.ps1)
 
 ## Stage Progress
 
@@ -64,8 +63,8 @@ ustup + D:devrgo (user env vars); WSL route dropped (user request, storage); po
 - [x] Workflow Planning — approved 2026-11-19
 - [x] Application Design — answered (all recommended) 2026-11-19
 - [x] Units Generation — approved 2026-11-19
-- [ ] Construction (per unit)
-- [ ] Build and Test
+- [x] Construction (per unit) — C2-U1..C2-U5 approved 2026-11-19
+- [x] Build and Test — cycle-2/construction/build-and-test/build-and-test-summary.md (2026-11-19)
 
 ## Cycle 2 Construction Progress
 | Unit | Status |
@@ -74,4 +73,4 @@ ustup + D:devrgo (user env vars); WSL route dropped (user request, storage); po
 | C2-U2 sandboxd-net broker | ✅ Approved 2026-11-19 |
 | C2-U3 Guest integration | ✅ Approved 2026-11-19 |
 | C2-U4 OTLP exporter | ✅ Approved 2026-11-19 |
-| C2-U5 E-NET + release | Built & tested (11 E-NET cases) — awaiting approval |
+| C2-U5 E-NET + release | ✅ Approved 2026-11-19 |

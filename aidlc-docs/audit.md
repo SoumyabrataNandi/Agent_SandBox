@@ -306,3 +306,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: C2-U4 marked approved (0b67631 pushed). C2-U5: E-NET escape family (11 cases, 10 in-process servers incl. 6 canary-serving forbidden destinations with hit counters; Py + JS) covering every NFR-N1 item plus raw device frames, shim tampering and concurrent isolation; THREAT_MODEL T13–T18, network trust boundary, R6 closed, R8–R10 added; docs/NETWORK.md (rules, limits, proxy guidance, APIs, error codes, audit); README and release packaging updated. Policy env keys must be uppercase (proxy policy uses HTTP(S)_PROXY). Escape suite 17 + 11, workspace tests, clippy (both feature sets), fmt, cargo-deny pass. AC 1–10 mapped in cycle-2/construction/c2-u5-enet-release/summary.md; AC 10 on CI runners pending the GitHub run. Awaiting approval.
 
 ---
+
+## C2-U5 approved; cycle 2 closed
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: C2-U5 marked approved (f0036df). Wrote cycle-2/construction/build-and-test/build-and-test-summary.md (builds, 166 tests incl. 11 E-NET, performance, AC 1–10 evidence, defects fixed, carry-forward). Cycle 2 (Phase 4 network broker + OTLP) closed; GitHub Actions run of f0036df is the CI confirmation for AC 10 (not observable from this session). Repaired the mangled Toolchain line in aidlc-state.md. Next: cycle 3 (Phase 5 performance) from requirements.
+
+---
