@@ -13,6 +13,15 @@ const MARKER: &str = ".complete";
 /// Guest path the stdlib is mounted at. Must match `sandboxd_policy::STDLIB_GUEST_PATH`.
 pub const STDLIB_GUEST: &str = sandboxd_policy::STDLIB_GUEST_PATH;
 
+/// CPython's start-up path calculation (`getpath`) looks for the *empty* `lib-dynload` directory to
+/// set `sys.exec_prefix`; without it every run prints "Could not find platform dependent
+/// libraries" warnings to stderr. Empty directories are easy to lose (cleanup tools, copies), and
+/// the marker doesn't cover them, so it is re-created on every start (idempotent).
+fn ensure_getpath_dirs(lib: &Path) -> Result<(), VfsError> {
+    let d = lib.join("lib-dynload");
+    std::fs::create_dir_all(&d).map_err(io("create lib-dynload", &d))
+}
+
 /// Host directory (`.../lib/python3.15`) holding the extracted stdlib, extracting it on first use.
 ///
 /// `cache_dir/stdlib/<sha256>/` is extracted to a temp sibling and renamed into place; a marker
@@ -25,6 +34,7 @@ pub fn ensure_stdlib(
     let final_dir = root.join(asset.sha256);
     let lib = final_dir.join("lib").join(lib_dir_name(asset)?);
     if marker_ok(&final_dir, asset.sha256) && lib.is_dir() {
+        ensure_getpath_dirs(&lib)?;
         return Ok(lib);
     }
     std::fs::create_dir_all(&root).map_err(io("create stdlib cache", &root))?;
@@ -143,6 +153,12 @@ mod tests {
         std::fs::remove_file(lib.join("os.py")).expect("rm");
         let lib3 = ensure_stdlib(&dir, &sandboxd_assets::PYTHON).expect("repair");
         assert!(lib3.join("os.py").is_file());
+
+        // A lost empty lib-dynload (getpath needs it) is restored without re-extracting.
+        assert!(lib3.join("lib-dynload").is_dir());
+        std::fs::remove_dir(lib3.join("lib-dynload")).expect("rm lib-dynload");
+        let lib4 = ensure_stdlib(&dir, &sandboxd_assets::PYTHON).expect("restore");
+        assert!(lib4.join("lib-dynload").is_dir());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -12,6 +12,10 @@ publish = false
 name = "sandboxd"
 path = "src/main.rs"
 
+[features]
+# OTLP/HTTP export (metrics + a span per run); off by default.
+otel = ["sandboxd-server/otel"]
+
 [dependencies]
 sandboxd-assets.workspace = true
 sandboxd-audit.workspace = true

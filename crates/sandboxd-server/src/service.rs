@@ -5,7 +5,7 @@ use std::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use sandboxd_audit::{AuditEvent, AuditSink, EventKind};
@@ -16,7 +16,7 @@ use tokio::sync::{Semaphore, mpsc};
 use crate::{
     api::{ApiPolicy, ApiRunRequest},
     auth::Principal,
-    metrics::{KindLabel, LangLabel, Metrics, RunLabels},
+    metrics::Metrics,
 };
 
 /// Why a request was refused before running. Guest failures are never `ServiceError`s.
@@ -138,7 +138,7 @@ impl RunService {
     /// `true` while runs can be accepted (audit writable).
     pub fn healthy(&self) -> bool {
         let ok = self.inner.audit.is_healthy();
-        self.inner.metrics.audit_healthy.set(i64::from(ok));
+        self.inner.metrics.audit_healthy_set(ok);
         ok
     }
 
@@ -175,6 +175,7 @@ impl RunService {
         events: Option<mpsc::Sender<RunEvent>>,
     ) -> Result<RunResult, ServiceError> {
         let m = &self.inner.metrics;
+        let started = SystemTime::now();
         // S1: fail closed.
         if !self.healthy() {
             m.reject("audit_unavailable");
@@ -210,14 +211,14 @@ impl RunService {
             m.reject("overloaded");
             return Err(ServiceError::Overloaded);
         }
-        m.queue_depth.inc();
+        m.queue_add(1);
         let permit = tokio::time::timeout(
             self.inner.admission.queue_timeout,
             self.inner.slots.clone().acquire_owned(),
         )
         .await;
         self.inner.waiting.fetch_sub(1, Ordering::SeqCst);
-        m.queue_depth.dec();
+        m.queue_add(-1);
         let Ok(Ok(_permit)) = permit else {
             m.reject("overloaded");
             return Err(ServiceError::Overloaded);
@@ -225,38 +226,37 @@ impl RunService {
         let queued_ms = u64::try_from(t_queue.elapsed().as_millis()).unwrap_or(u64::MAX);
 
         // S5: run.
-        m.running.inc();
+        m.running_add(1);
         let mut result = self
             .inner
             .sandbox
             .execute(run_req, policy, &principal.0, events)
             .await;
-        m.running.dec();
+        m.running_add(-1);
         result.timings.queued_ms = queued_ms;
         result.timings.total_ms += queued_ms;
 
-        let lang = result.language.as_str().to_string();
         let outcome = serde_json::to_value(result.outcome)
             .ok()
             .and_then(|v| v.as_str().map(String::from))
             .unwrap_or_default();
-        m.runs
-            .get_or_create(&RunLabels {
-                language: lang.clone(),
-                policy: result.policy.clone(),
-                outcome,
+        let limits: Vec<String> = result
+            .limits_hit
+            .iter()
+            .filter_map(|k| {
+                serde_json::to_value(k)
+                    .ok()
+                    .and_then(|v| v.as_str().map(String::from))
             })
-            .inc();
-        m.duration
-            .get_or_create(&LangLabel { language: lang })
-            .observe(result.timings.total_ms as f64 / 1000.0);
-        for k in &result.limits_hit {
-            let kind = serde_json::to_value(k)
-                .ok()
-                .and_then(|v| v.as_str().map(String::from))
-                .unwrap_or_default();
-            m.limits.get_or_create(&KindLabel { kind }).inc();
-        }
+            .collect();
+        m.record_run(
+            result.language.as_str(),
+            &result.policy,
+            &outcome,
+            result.timings.total_ms as f64 / 1000.0,
+            &limits,
+        );
+        crate::otel::record_run_span(&result, started);
         Ok(result)
     }
 }

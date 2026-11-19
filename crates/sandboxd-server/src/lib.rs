@@ -16,10 +16,12 @@ pub mod config;
 pub mod http;
 pub mod mcp;
 mod metrics;
+pub mod otel;
 pub mod service;
 
 pub use auth::{Principal, TokenSet, generate_token, hash_token};
 pub use config::{AuditDest, NetworkConfig, ServerConfig};
 pub use mcp::{INSTRUCTIONS, SandboxMcp};
 pub use metrics::Metrics;
+pub use otel::Telemetry;
 pub use service::{AdmissionConfig, RunService, ServiceError};

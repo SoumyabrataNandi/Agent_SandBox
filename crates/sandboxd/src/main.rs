@@ -267,6 +267,8 @@ struct Stack {
     service: RunService,
     audit_writer: Option<Arc<JsonlSink>>,
     audit_desc: String,
+    /// OTLP export (`otel` feature + `telemetry.otlp_endpoint`); flushed at exit.
+    telemetry: sandboxd_server::Telemetry,
 }
 
 async fn build(
@@ -287,12 +289,19 @@ async fn build(
     if !(report.python_cached && report.javascript_cached) {
         tracing::info!(?report, "interpreters compiled and cached");
     }
+    // Before RunService::new: its OTel instruments bind to the global meter provider.
+    let telemetry =
+        sandboxd_server::Telemetry::init(cfg.otlp_endpoint.as_deref(), cfg.otlp_interval).await?;
+    if telemetry.enabled() {
+        tracing::info!(endpoint = ?cfg.otlp_endpoint, "OTLP export enabled");
+    }
     let service = RunService::new(sandbox, policies, audit, admission);
     service.metrics().startup_ms_set(report.elapsed);
     Ok(Stack {
         service,
         audit_writer: writer,
         audit_desc: desc,
+        telemetry,
     })
 }
 
@@ -551,6 +560,7 @@ async fn run(a: RunArgs, cfg: &ServerConfig) -> ExitCode {
     if let Some(w) = &stack.audit_writer {
         w.shutdown();
     }
+    stack.telemetry.shutdown().await;
     let r = match result {
         Ok(r) => r,
         Err(e) => {
@@ -717,6 +727,7 @@ async fn serve(mut cfg: ServerConfig, listen: Option<String>) -> ExitCode {
     if let Some(w) = &stack.audit_writer {
         w.shutdown();
     }
+    stack.telemetry.shutdown().await;
     match served {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => fail(format!("server: {e}")),
@@ -745,6 +756,7 @@ async fn mcp(cfg: &ServerConfig) -> ExitCode {
     if let Some(w) = &stack.audit_writer {
         w.shutdown();
     }
+    stack.telemetry.shutdown().await;
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => fail(format!("mcp: {e}")),

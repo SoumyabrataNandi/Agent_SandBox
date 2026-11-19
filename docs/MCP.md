@@ -55,6 +55,13 @@ tokens = [ { name = "claude", sha256 = "<from `sandboxd token new`>" } ]
 [audit]
 sink = "file"
 path = "D:/sandboxd/audit.jsonl"
+
+# Optional OTLP/HTTP export of the /metrics instruments plus one `sandboxd.run` span per run.
+# Needs a build with `cargo build --release -p sandboxd --features otel`; other builds ignore it
+# with a warning. Spans never contain code, output, paths or principals.
+# [telemetry]
+# otlp_endpoint = "http://otel-collector:4318"   # /v1/metrics and /v1/traces are appended
+# otlp_interval = "30s"                          # metric export interval (1s–1h)
 ```
 
 ## Example policy (`policies/data.toml`)

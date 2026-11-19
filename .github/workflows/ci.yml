@@ -11,6 +11,9 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
+  # GitHub is retiring Node 20 for JavaScript actions: every action below runs on Node 24, and
+  # this also moves any action still declaring node20 onto Node 24.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   test:
@@ -28,7 +31,7 @@ jobs:
           python-version: "3.13"
       - name: Install pinned toolchain (rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: assets/vendor
           key: assets-${{ hashFiles('assets/manifest.toml') }}
@@ -59,7 +62,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: rustup show active-toolchain || rustup toolchain install
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: assets/vendor
           key: assets-${{ hashFiles('assets/manifest.toml') }}
@@ -67,6 +70,35 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: escape suite
         run: cargo test --locked -p sandboxd-escape-suite -- --test-threads=4
+
+  # FR-O1: the optional `otel` feature builds, lints and exports to a local collector stub; the
+  # default build must not contain any OpenTelemetry crate.
+  otel:
+    name: otel feature
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/cache@v5
+        with:
+          path: assets/vendor
+          key: assets-${{ hashFiles('assets/manifest.toml') }}
+      - run: python scripts/fetch-assets.py
+      - uses: Swatinem/rust-cache@v2
+      - name: default build has no OpenTelemetry
+        run: |
+          if cargo tree --locked -p sandboxd -e normal --prefix none | grep -E '^(opentelemetry|prost)'; then
+            echo "OpenTelemetry crates leaked into the default build" >&2
+            exit 1
+          fi
+      - name: clippy (otel)
+        run: cargo clippy --locked -p sandboxd -p sandboxd-server --all-targets --features sandboxd/otel,sandboxd-server/otel -- -D warnings
+      - name: OTLP export tests
+        run: cargo test --locked -p sandboxd-server --features otel -- --test-threads=4
 
   perf-smoke:
     name: performance smoke (2x NFR-3)
@@ -90,6 +122,8 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check advisories bans licenses sources
-      - uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # cargo-audit run directly (rustsec/audit-check has no Node 24 release).
+      - name: cargo-audit
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit

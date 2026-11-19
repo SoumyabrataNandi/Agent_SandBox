@@ -325,6 +325,7 @@ fn failed(
         error: Some(error),
         fuel_used: 0,
         peak_memory: 0,
+        net_requests: 0,
         timings,
     }
 }
@@ -704,7 +705,8 @@ async fn run(
     if report.limit_hit.is_some() || collected.limit_hit.is_some() {
         limits_hit.push(LimitKind::Artifacts);
     }
-    if net.as_ref().is_some_and(|n| n.finish().limit_hit) {
+    let net_report = net.as_ref().map(|n| n.finish()).unwrap_or_default();
+    if net_report.limit_hit {
         limits_hit.push(LimitKind::Network);
     }
     if stdout.truncated() {
@@ -745,6 +747,7 @@ async fn run(
         error,
         fuel_used,
         peak_memory,
+        net_requests: net_report.requests,
         timings: Timings {
             queued_ms: 0,
             setup_ms,

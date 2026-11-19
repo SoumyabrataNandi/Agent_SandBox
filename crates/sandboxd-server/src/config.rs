@@ -81,6 +81,7 @@ struct RawRedact {
 #[serde(deny_unknown_fields)]
 struct RawTelemetry {
     otlp_endpoint: Option<String>,
+    otlp_interval: Option<String>,
 }
 
 /// Where audit events go.
@@ -132,7 +133,10 @@ pub struct ServerConfig {
     /// `None` → mode default (Q9).
     pub audit: Option<AuditDest>,
     pub redact: Vec<(String, String)>,
+    /// OTLP/HTTP base URL (`otel` feature), e.g. `http://collector:4318`.
     pub otlp_endpoint: Option<String>,
+    /// Metric export interval (default 30s).
+    pub otlp_interval: std::time::Duration,
     pub network: NetworkConfig,
 }
 
@@ -150,6 +154,7 @@ impl Default for ServerConfig {
             audit: None,
             redact: Vec::new(),
             otlp_endpoint: None,
+            otlp_interval: crate::otel::DEFAULT_EXPORT_INTERVAL,
             network: NetworkConfig::default(),
         }
     }
@@ -206,6 +211,27 @@ impl ServerConfig {
             .map(|r| (r.name, r.regex))
             .collect();
         c.otlp_endpoint = raw.telemetry.otlp_endpoint.filter(|e| !e.is_empty());
+        if let Some(e) = &c.otlp_endpoint {
+            let ok = (e.starts_with("http://") || e.starts_with("https://"))
+                && !e.contains(char::is_whitespace);
+            if !ok {
+                return Err(format!(
+                    "telemetry.otlp_endpoint {e:?}: must be an http:// or https:// URL (OTLP/HTTP, e.g. http://collector:4318)"
+                ));
+            }
+        }
+        if let Some(i) = &raw.telemetry.otlp_interval {
+            let d = sandboxd_policy::parse_duration(i)
+                .map_err(|e| format!("telemetry.otlp_interval: {e}"))?;
+            if !(std::time::Duration::from_secs(1)..=std::time::Duration::from_secs(3600))
+                .contains(&d)
+            {
+                return Err(format!(
+                    "telemetry.otlp_interval {i:?}: must be between 1s and 1h"
+                ));
+            }
+            c.otlp_interval = d;
+        }
         let n = raw.network;
         if let Some(p) = &n.proxy {
             let ok = (p.starts_with("http://") || p.starts_with("https://"))
@@ -293,5 +319,34 @@ proxy = \"socks5://x\"
             .is_err()
         );
         assert!(ServerConfig::default().network.enabled);
+    }
+
+    #[test]
+    fn telemetry_endpoint_and_interval() {
+        let p = std::path::Path::new(".");
+        let c = ServerConfig::from_toml(
+            "[telemetry]\notlp_endpoint = \"http://collector:4318\"\notlp_interval = \"10s\"\n",
+            p,
+        )
+        .expect("telemetry");
+        assert_eq!(c.otlp_endpoint.as_deref(), Some("http://collector:4318"));
+        assert_eq!(c.otlp_interval, Duration::from_secs(10));
+        let d = ServerConfig::default();
+        assert_eq!(
+            (d.otlp_endpoint, d.otlp_interval),
+            (None, crate::otel::DEFAULT_EXPORT_INTERVAL)
+        );
+        // An empty endpoint means "off".
+        let off = ServerConfig::from_toml("[telemetry]\notlp_endpoint = \"\"\n", p).expect("empty");
+        assert!(off.otlp_endpoint.is_none());
+        for bad in [
+            "[telemetry]\notlp_endpoint = \"collector:4317\"\n",
+            "[telemetry]\notlp_endpoint = \"grpc://collector:4317\"\n",
+            "[telemetry]\notlp_interval = \"100ms\"\n",
+            "[telemetry]\notlp_interval = \"2h\"\n",
+            "[telemetry]\nbogus = 1\n",
+        ] {
+            assert!(ServerConfig::from_toml(bad, p).is_err(), "{bad}");
+        }
     }
 }

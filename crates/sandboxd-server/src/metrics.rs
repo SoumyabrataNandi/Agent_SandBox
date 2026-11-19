@@ -1,4 +1,4 @@
-//! Prometheus metrics (U5 design §6).
+//! Prometheus metrics (U5 design §6), mirrored to OTLP when the `otel` feature is on (C2-U4).
 
 use std::sync::atomic::AtomicU64;
 
@@ -41,6 +41,7 @@ pub struct Metrics {
     pub(crate) running: Gauge,
     pub(crate) audit_healthy: Gauge,
     pub(crate) startup_ms: Gauge<u64, AtomicU64>,
+    otel: crate::otel::Instruments,
 }
 
 impl std::fmt::Debug for Metrics {
@@ -99,6 +100,7 @@ impl Default for Metrics {
             running,
             audit_healthy,
             startup_ms,
+            otel: crate::otel::Instruments::new(),
         }
     }
 }
@@ -113,8 +115,9 @@ impl Metrics {
 
     /// Record engine warm-up time.
     pub fn startup_ms_set(&self, d: std::time::Duration) {
-        self.startup_ms
-            .set(u64::try_from(d.as_millis()).unwrap_or(u64::MAX));
+        let ms = u64::try_from(d.as_millis()).unwrap_or(u64::MAX);
+        self.startup_ms.set(ms);
+        self.otel.startup_ms(ms);
     }
 
     pub(crate) fn reject(&self, reason: &str) {
@@ -123,5 +126,51 @@ impl Metrics {
                 reason: reason.into(),
             })
             .inc();
+        self.otel.reject(reason);
+    }
+
+    pub(crate) fn audit_healthy_set(&self, ok: bool) {
+        self.audit_healthy.set(i64::from(ok));
+        self.otel.audit_healthy(ok);
+    }
+
+    pub(crate) fn queue_add(&self, delta: i64) {
+        self.queue_depth.inc_by(delta);
+        self.otel.queue(delta);
+    }
+
+    pub(crate) fn running_add(&self, delta: i64) {
+        self.running.inc_by(delta);
+        self.otel.running(delta);
+    }
+
+    /// One finished run: counter, duration histogram and limits.
+    pub(crate) fn record_run(
+        &self,
+        language: &str,
+        policy: &str,
+        outcome: &str,
+        seconds: f64,
+        limits: &[String],
+    ) {
+        self.runs
+            .get_or_create(&RunLabels {
+                language: language.into(),
+                policy: policy.into(),
+                outcome: outcome.into(),
+            })
+            .inc();
+        self.duration
+            .get_or_create(&LangLabel {
+                language: language.into(),
+            })
+            .observe(seconds);
+        self.otel.run(language, policy, outcome, seconds);
+        for kind in limits {
+            self.limits
+                .get_or_create(&KindLabel { kind: kind.clone() })
+                .inc();
+            self.otel.limit(kind);
+        }
     }
 }

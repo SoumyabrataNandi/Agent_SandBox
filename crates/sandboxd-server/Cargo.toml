@@ -31,6 +31,15 @@ prometheus-client.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 toml.workspace = true
+opentelemetry = { workspace = true, optional = true }
+opentelemetry_sdk = { workspace = true, optional = true }
+opentelemetry-otlp = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
+
+[features]
+# OTLP/HTTP export of metrics and a span per run (FR-O1). Off by default: without it, none of the
+# OpenTelemetry crates are compiled.
+otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp", "dep:rustls"]
 
 [dev-dependencies]
 sandboxd-net.workspace = true

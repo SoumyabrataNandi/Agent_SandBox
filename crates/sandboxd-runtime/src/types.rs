@@ -150,6 +150,8 @@ pub struct RunResult {
     pub error: Option<RunError>,
     pub fuel_used: u64,
     pub peak_memory: u64,
+    /// HTTP requests + TCP connections made through the network broker (0 without grants).
+    pub net_requests: u32,
     pub timings: Timings,
 }
 

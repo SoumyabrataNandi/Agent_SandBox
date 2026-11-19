@@ -61,6 +61,11 @@ reqwest = { version = "0.13.5", default-features = false, features = ["rustls-no
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 url = "2.5"
 rcgen = "0.14"
+# OTLP export (cycle 2, C2-U4): only behind sandboxd-server's `otel` feature. The OTLP HTTP client
+# is reqwest 0.13 (blocking), i.e. the same HTTP/TLS stack as the network broker.
+opentelemetry = { version = "0.33", default-features = false, features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.33", default-features = false, features = ["metrics", "trace"] }
+opentelemetry-otlp = { version = "0.33", default-features = false, features = ["http-proto", "metrics", "trace", "reqwest-blocking-client"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"            # crates that genuinely need it (vfs, runtime) opt out locally with review
