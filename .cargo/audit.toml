@@ -1,0 +1,4 @@
+# cargo-audit config (mirrors deny.toml [advisories].ignore; keep the two in sync).
+[advisories]
+# chrono "unmaintained": required transitively by rmcp 3.11 / schemars 1.2; not called by sandboxd.
+ignore = ["RUSTSEC-2026-0543"]

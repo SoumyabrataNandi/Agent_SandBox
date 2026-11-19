@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+publish = false
 
 [dependencies]
 serde.workspace = true
@@ -14,7 +15,6 @@ uuid.workspace = true
 regex.workspace = true
 sha2.workspace = true
 hex.workspace = true
-humantime.workspace = true
 
 [dev-dependencies]
 sandboxd-audit = { path = ".", features = ["testing"] }

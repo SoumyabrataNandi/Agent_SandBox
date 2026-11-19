@@ -6,7 +6,12 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-ignore = []
+ignore = [
+    # chrono "unmaintained" (informational, not a vulnerability). It is a *required* dependency of
+    # rmcp 3.11 and schemars 1.2 (official MCP SDK); sandboxd never calls it directly. Re-check
+    # every cycle; drop this when rmcp/schemars move off chrono. Added 2026-11-19.
+    { id = "RUSTSEC-2026-0543", reason = "transitive via rmcp/schemars; no alternative; tracked in THREAT_MODEL R1" },
+]
 
 [licenses]
 version = 2
@@ -17,10 +22,8 @@ allow = [
     "MIT",
     "BSD-2-Clause",
     "BSD-3-Clause",
-    "ISC",
     "Unicode-3.0",
     "Zlib",
-    "CDLA-Permissive-2.0",
 ]
 
 [bans]

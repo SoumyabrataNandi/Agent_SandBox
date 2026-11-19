@@ -28,7 +28,7 @@ The first test run compiles the interpreters and the stdlib bytecode (about 30 s
 ## Acceptance criteria
 | AC | Status | Evidence |
 |---|---|---|
-| 1 hello.py / hello.js on 3 OSes | ✅ Windows · ⏳ Linux/macOS CI | runtime `ac1_*`, CLI tests |
+| 1 hello.py / hello.js on 3 OSes | ✅ Windows, Linux x64/arm64, macOS (CI 2026-11-19) | runtime `ac1_*`, CLI tests |
 | 2 timeout ≤ 2.2 s; fuel → cpu | ✅ | runtime `ac2_*`, E-CPU |
 | 3 1 GB under 128 MiB contained | ✅ | runtime `ac3_*`, E-MEM |
 | 4 no host data; denials audited | ✅ | E-FS-1…5, E-ENV, canaries |
@@ -37,12 +37,12 @@ The first test run compiles the interpreters and the stdlib bytecode (about 30 s
 | 7 MCP from Claude | ✅ | stdio child process, in-memory, HTTP + token |
 | 8 auth + bind safety | ✅ | server + CLI tests, E-AUTH |
 | 9 TOML/YAML parity | ✅ | policy golden tests |
-| 10 escape suite on 3 OSes | ✅ Windows · ⏳ Linux/macOS CI | escape-suite (CI job `escape-suite`) |
+| 10 escape suite on 3 OSes | ✅ all 4 CI runners (2026-11-19) | escape-suite (CI job `escape-suite`) |
 
 ## NFR status
 | NFR | Status |
 |---|---|
-| NFR-1 3 OSes first-class | Windows verified locally. The CI matrix covers ubuntu x64/arm64 + macOS: **pending a green run** |
+| NFR-1 3 OSes first-class | ✅ test + escape-suite green on ubuntu x64/arm64, macOS, Windows (CI) |
 | NFR-2 single binary, embedded assets | ✅ release binary embeds both interpreters (≈16.5 MB + deps) |
 | NFR-3 latency | ✅ 92 ms / 149 ms / 6 ms (release) |
 | NFR-4 security baseline + escape suite | ✅ one `unsafe` (documented); 2 defects found and fixed; threat model final |
@@ -50,6 +50,6 @@ The first test run compiles the interpreters and the stdlib bytecode (about 30 s
 | NFR-7 license | ✅ Apache-2.0; third-party licenses shipped in release archives |
 
 ## Open items for the user
-1. **Check GitHub Actions** for the first runs of `ci.yml` on Linux/macOS (I can't read the private repo's Actions). Make `escape-suite` a **required status check** for `main` in branch protection.
+1. ✅ CI green on all OSes except the supply-chain job, which was fixed 2026-11-19 (zip 9, humantime removed, publish=false, scoped chrono ignore). Make `escape-suite` and `supply chain` **required status checks** for `main`.
 2. To cut a release: `git tag v0.1.0 && git push origin v0.1.0` → review the draft release → publish.
 3. Deferred to the next cycle: OTLP exporter (R6); Phase 4 network broker (ADR-002); Phase 5 snapshots/pooling/sessions/benchmarks.
