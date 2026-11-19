@@ -18,7 +18,10 @@ use sandboxd_vfs::{
     Interposer, RunFs, StaticDevice, VfsConfig, VirtualDevice, VirtualFdTable, ensure_stdlib,
 };
 use tokio::sync::mpsc;
-use wasmtime::{Config, Engine, InstancePre, Linker, ResourceLimiter, Store, Trap, UpdateDeadline};
+use wasmtime::{
+    Config, Engine, InstanceAllocationStrategy, InstancePre, Linker, Module,
+    PoolingAllocationConfig, ResourceLimiter, Store, Trap, UpdateDeadline,
+};
 use wasmtime_wasi::{WasiCtxBuilder, p1::wasi_snapshot_preview1 as p1, p2::pipe::MemoryInputPipe};
 
 use crate::{
@@ -42,6 +45,42 @@ pub struct RuntimeConfig {
     /// Network egress broker (cycle 2). `None`: runs whose policy grants network access are
     /// refused with `POLICY_VIOLATION`; runs without grants are unaffected.
     pub broker: Option<Arc<Broker>>,
+    /// Instance allocation (cycle 3, FR-P1).
+    pub pooling: PoolingMode,
+    /// Pool size: concurrent instances (runs + sessions + start-up tasks). Runs wait for a slot
+    /// rather than fail when all are in use.
+    pub pool_slots: u32,
+}
+
+/// How instances get their memory, tables and stacks (FR-P1, ADR-C3-3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PoolingMode {
+    /// Pre-reserved, reused slots; falls back to on-demand if the pool can't be set up.
+    #[default]
+    Auto,
+    /// Pooling or a start-up error.
+    On,
+    /// Fresh allocation per run.
+    Off,
+}
+
+impl PoolingMode {
+    /// Parse `auto` / `on` / `off`.
+    pub fn parse(s: &str) -> Option<PoolingMode> {
+        match s.to_ascii_lowercase().as_str() {
+            "auto" => Some(PoolingMode::Auto),
+            "on" | "true" => Some(PoolingMode::On),
+            "off" | "false" => Some(PoolingMode::Off),
+            _ => None,
+        }
+    }
+}
+
+/// Pool occupancy (for metrics).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PoolStatus {
+    pub slots: u32,
+    pub in_use: u32,
 }
 
 impl Default for RuntimeConfig {
@@ -53,17 +92,23 @@ impl Default for RuntimeConfig {
             max_arg_bytes: 4096,
             precompile_stdlib: true,
             broker: None,
+            pooling: PoolingMode::Auto,
+            pool_slots: 64,
         }
     }
 }
 
 /// What `Sandbox::new` did, for logs and the CLI.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct WarmupReport {
     pub python_cached: bool,
     pub javascript_cached: bool,
     pub bytecode_compiled: bool,
     pub elapsed: Duration,
+    /// The pooling allocator is in use.
+    pub pooling: bool,
+    /// `PoolingMode::Auto` fell back to on-demand allocation, and why.
+    pub pooling_fallback: Option<String>,
 }
 
 /// Linear-memory limiter (U4 design §4).
@@ -128,6 +173,8 @@ struct Inner {
     javascript: InstancePre<RunState>,
     stdlib: PathBuf,
     helpers: PathBuf,
+    /// One permit per pool slot (pooling only): runs wait instead of failing when all are used.
+    slots: Option<(u32, Arc<tokio::sync::Semaphore>)>,
     cfg: RuntimeConfig,
     audit: Arc<dyn AuditSink>,
     _ticker: Ticker,
@@ -156,8 +203,48 @@ impl Sandbox {
         cfg: RuntimeConfig,
         audit: Arc<dyn AuditSink>,
     ) -> Result<(Sandbox, WarmupReport), RuntimeError> {
+        match cfg.pooling {
+            PoolingMode::Off => Self::build(cfg, audit, None).await,
+            PoolingMode::On => {
+                let slots = cfg.pool_slots;
+                Self::build(cfg, audit, Some(slots)).await
+            }
+            PoolingMode::Auto => {
+                let slots = cfg.pool_slots;
+                match Self::build(cfg.clone(), audit.clone(), Some(slots)).await {
+                    Ok(ok) => Ok(ok),
+                    Err(e) => {
+                        let (sb, mut report) = Self::build(cfg, audit, None).await?;
+                        report.pooling_fallback = Some(e.to_string());
+                        Ok((sb, report))
+                    }
+                }
+            }
+        }
+    }
+
+    async fn build(
+        cfg: RuntimeConfig,
+        audit: Arc<dyn AuditSink>,
+        pool: Option<u32>,
+    ) -> Result<(Sandbox, WarmupReport), RuntimeError> {
         let t0 = Instant::now();
         let mut wc = Config::new();
+        if let Some(slots) = pool {
+            if slots == 0 {
+                return Err(RuntimeError::Compile(
+                    "pooling: pool_slots must be > 0".into(),
+                ));
+            }
+            // ADR-C3-3: each slot covers the whole wasm32 range (4 GiB, the default), so no
+            // policy memory limit can exceed a slot; only the slot count needs sizing.
+            let mut p = PoolingAllocationConfig::new();
+            p.total_core_instances(slots)
+                .total_memories(slots)
+                .total_tables(slots)
+                .total_stacks(slots);
+            wc.allocation_strategy(InstanceAllocationStrategy::Pooling(p));
+        }
         wc.consume_fuel(true)
             .epoch_interruption(true)
             // Wasm may use 1 MiB of the 4 MiB async fiber stack; the remaining ~3 MiB is headroom
@@ -204,6 +291,15 @@ impl Sandbox {
         let javascript = linker
             .instantiate_pre(&js_mod)
             .map_err(|e| RuntimeError::Compile(e.to_string()))?;
+        if pool.is_some() {
+            // Instantiate both interpreters once so pool limits (tables, instance size) fail
+            // here, where `Auto` can fall back, and never in a run.
+            for (name, m) in [("python", &py_mod), ("javascript", &js_mod)] {
+                probe_instantiate(&engine, m)
+                    .await
+                    .map_err(|e| RuntimeError::Compile(format!("pooling probe ({name}): {e}")))?;
+            }
+        }
 
         let stop = Arc::new(AtomicBool::new(false));
         {
@@ -224,6 +320,8 @@ impl Sandbox {
             javascript_cached,
             bytecode_compiled,
             elapsed: t0.elapsed(),
+            pooling: pool.is_some(),
+            pooling_fallback: None,
         };
         Ok((
             Sandbox {
@@ -233,6 +331,7 @@ impl Sandbox {
                     javascript,
                     stdlib,
                     helpers,
+                    slots: pool.map(|n| (n, Arc::new(tokio::sync::Semaphore::new(n as usize)))),
                     cfg,
                     audit,
                     _ticker: Ticker { stop },
@@ -300,6 +399,14 @@ impl Sandbox {
     /// The engine (shared with tooling such as `cache warm`).
     pub fn engine(&self) -> &Engine {
         &self.inner.engine
+    }
+
+    /// Pool occupancy, or `None` without pooling.
+    pub fn pool_status(&self) -> Option<PoolStatus> {
+        self.inner.slots.as_ref().map(|(n, s)| PoolStatus {
+            slots: *n,
+            in_use: n.saturating_sub(u32::try_from(s.available_permits()).unwrap_or(*n)),
+        })
     }
 }
 
@@ -374,6 +481,19 @@ fn register_info(vfds: &mut VirtualFdTable, policy: &Policy) {
             }
         }),
     );
+}
+
+/// Instantiate `m` once with an empty WASI context (no `_start`): validates pool limits.
+async fn probe_instantiate(engine: &Engine, m: &Module) -> Result<(), String> {
+    let mut l: Linker<wasmtime_wasi::p1::WasiP1Ctx> = Linker::new(engine);
+    wasmtime_wasi::p1::add_to_linker_async(&mut l, |c| c).map_err(|e| e.to_string())?;
+    let mut store = Store::new(engine, WasiCtxBuilder::new().build_p1());
+    let _ = store.set_fuel(u64::MAX);
+    store.epoch_deadline_callback(|_| Ok(UpdateDeadline::Yield(1)));
+    l.instantiate_async(&mut store, m)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 fn ms(d: Duration) -> u64 {
@@ -616,7 +736,12 @@ async fn run(
     }
     let interposer = fs.interposer(b.build_p1(), vfds);
 
-    // 5. Store with limits.
+    // 5. Store with limits. With pooling, hold a slot for the Store's lifetime (FR-P1.3: wait,
+    // never fail, when all slots are busy).
+    let _slot = match &inner.slots {
+        Some((_, sem)) => sem.clone().acquire_owned().await.ok(),
+        None => None,
+    };
     let mut store = Store::new(
         &inner.engine,
         RunState {

@@ -22,6 +22,8 @@ struct Raw {
     #[serde(default)]
     telemetry: RawTelemetry,
     #[serde(default)]
+    runtime: RawRuntime,
+    #[serde(default)]
     network: RawNetworkCfg,
 }
 
@@ -75,6 +77,12 @@ struct RawAudit {
 struct RawRedact {
     name: String,
     regex: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawRuntime {
+    pooling: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -138,6 +146,8 @@ pub struct ServerConfig {
     /// Metric export interval (default 30s).
     pub otlp_interval: std::time::Duration,
     pub network: NetworkConfig,
+    /// `[runtime] pooling` (cycle 3, FR-P1).
+    pub pooling: sandboxd_runtime::PoolingMode,
 }
 
 impl Default for ServerConfig {
@@ -156,6 +166,7 @@ impl Default for ServerConfig {
             otlp_endpoint: None,
             otlp_interval: crate::otel::DEFAULT_EXPORT_INTERVAL,
             network: NetworkConfig::default(),
+            pooling: sandboxd_runtime::PoolingMode::Auto,
         }
     }
 }
@@ -210,6 +221,10 @@ impl ServerConfig {
             .into_iter()
             .map(|r| (r.name, r.regex))
             .collect();
+        if let Some(p) = &raw.runtime.pooling {
+            c.pooling = sandboxd_runtime::PoolingMode::parse(p)
+                .ok_or_else(|| format!("runtime.pooling {p:?}: use auto, on or off"))?;
+        }
         c.otlp_endpoint = raw.telemetry.otlp_endpoint.filter(|e| !e.is_empty());
         if let Some(e) = &c.otlp_endpoint {
             let ok = (e.starts_with("http://") || e.starts_with("https://"))
@@ -319,6 +334,26 @@ proxy = \"socks5://x\"
             .is_err()
         );
         assert!(ServerConfig::default().network.enabled);
+    }
+
+    #[test]
+    fn runtime_pooling_mode() {
+        let p = std::path::Path::new(".");
+        assert_eq!(
+            ServerConfig::default().pooling,
+            sandboxd_runtime::PoolingMode::Auto
+        );
+        for (v, want) in [
+            ("auto", sandboxd_runtime::PoolingMode::Auto),
+            ("on", sandboxd_runtime::PoolingMode::On),
+            ("off", sandboxd_runtime::PoolingMode::Off),
+        ] {
+            let c = ServerConfig::from_toml(&format!("[runtime]\npooling = \"{v}\"\n"), p)
+                .expect("pooling");
+            assert_eq!(c.pooling, want);
+        }
+        assert!(ServerConfig::from_toml("[runtime]\npooling = \"maybe\"\n", p).is_err());
+        assert!(ServerConfig::from_toml("[runtime]\nbogus = 1\n", p).is_err());
     }
 
     #[test]

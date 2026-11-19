@@ -24,7 +24,7 @@ mod types;
 pub use error::RuntimeError;
 pub use helpers::{ensure_helpers, helpers_sha256};
 pub use native::{NATIVE_PACKAGES, detect as detect_native_extension};
-pub use sandbox::{EPOCH_TICK, RuntimeConfig, Sandbox, WarmupReport};
+pub use sandbox::{EPOCH_TICK, PoolStatus, PoolingMode, RuntimeConfig, Sandbox, WarmupReport};
 pub use seams::{FallbackBackend, SeamFuture, SessionStore};
 pub use types::{Language, RunError, RunEvent, RunRequest, RunResult, SessionId, Timings};
 

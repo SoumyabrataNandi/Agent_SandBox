@@ -203,6 +203,16 @@ impl Instruments {
         let _ = ok;
     }
 
+    pub(crate) fn pool(&self, slots: u32, in_use: u32) {
+        #[cfg(feature = "otel")]
+        if let Some(i) = &self.inner {
+            i.pool_slots.record(u64::from(slots), &[]);
+            i.pool_in_use.record(u64::from(in_use), &[]);
+        }
+        #[cfg(not(feature = "otel"))]
+        let _ = (slots, in_use);
+    }
+
     pub(crate) fn startup_ms(&self, ms: u64) {
         #[cfg(feature = "otel")]
         if let Some(i) = &self.inner {
@@ -354,6 +364,8 @@ mod imp {
         pub(super) running: UpDownCounter<i64>,
         pub(super) audit_healthy: Gauge<i64>,
         pub(super) startup: Gauge<u64>,
+        pub(super) pool_slots: Gauge<u64>,
+        pub(super) pool_in_use: Gauge<u64>,
     }
 
     impl std::fmt::Debug for Instruments {
@@ -402,6 +414,14 @@ mod imp {
                     .u64_gauge("sandboxd.startup")
                     .with_unit("ms")
                     .with_description("Engine warm-up time")
+                    .build(),
+                pool_slots: m
+                    .u64_gauge("sandboxd.pool.slots")
+                    .with_description("Instance pool size (0 without pooling)")
+                    .build(),
+                pool_in_use: m
+                    .u64_gauge("sandboxd.pool.slots_in_use")
+                    .with_description("Instance pool slots in use")
                     .build(),
             }
         }

@@ -281,11 +281,19 @@ async fn build(
     let rc = RuntimeConfig {
         vfs: vfs_config(cfg),
         broker: network_broker(&cfg.network)?,
+        pooling: cfg.pooling,
+        // ADR-C3-3: one slot per concurrent run, plus start-up tasks (bytecode, probes).
+        pool_slots: u32::try_from(admission.max_concurrent)
+            .unwrap_or(u32::MAX)
+            .saturating_add(2),
         ..RuntimeConfig::default()
     };
     let (sandbox, report) = Sandbox::new(rc, audit.clone())
         .await
         .map_err(|e| e.to_string())?;
+    if let Some(why) = &report.pooling_fallback {
+        tracing::warn!(reason = %why, "pooling allocator unavailable; using on-demand allocation");
+    }
     if !(report.python_cached && report.javascript_cached) {
         tracing::info!(?report, "interpreters compiled and cached");
     }
@@ -297,6 +305,7 @@ async fn build(
     }
     let service = RunService::new(sandbox, policies, audit, admission);
     service.metrics().startup_ms_set(report.elapsed);
+    service.metrics().pool_set(service.pool_status());
     Ok(Stack {
         service,
         audit_writer: writer,

@@ -41,6 +41,8 @@ pub struct Metrics {
     pub(crate) running: Gauge,
     pub(crate) audit_healthy: Gauge,
     pub(crate) startup_ms: Gauge<u64, AtomicU64>,
+    pool_slots: Gauge,
+    pool_in_use: Gauge,
     otel: crate::otel::Instruments,
 }
 
@@ -62,6 +64,7 @@ impl Default for Metrics {
         let (queue_depth, running, audit_healthy) =
             (Gauge::default(), Gauge::default(), Gauge::default());
         let startup_ms = Gauge::<u64, AtomicU64>::default();
+        let (pool_slots, pool_in_use) = (Gauge::default(), Gauge::default());
         registry.register("runs", "Completed runs", runs.clone());
         registry.register(
             "run_duration_seconds",
@@ -90,6 +93,16 @@ impl Default for Metrics {
             "Engine warm-up time",
             startup_ms.clone(),
         );
+        registry.register(
+            "pool_slots",
+            "Instance pool size (0 without pooling)",
+            pool_slots.clone(),
+        );
+        registry.register(
+            "pool_slots_in_use",
+            "Instance pool slots in use",
+            pool_in_use.clone(),
+        );
         Self {
             registry,
             runs,
@@ -100,6 +113,8 @@ impl Default for Metrics {
             running,
             audit_healthy,
             startup_ms,
+            pool_slots,
+            pool_in_use,
             otel: crate::otel::Instruments::new(),
         }
     }
@@ -127,6 +142,14 @@ impl Metrics {
             })
             .inc();
         self.otel.reject(reason);
+    }
+
+    /// Pool occupancy (FR-P1.4).
+    pub fn pool_set(&self, status: Option<sandboxd_runtime::PoolStatus>) {
+        let (slots, used) = status.map_or((0, 0), |s| (s.slots, s.in_use));
+        self.pool_slots.set(i64::from(slots));
+        self.pool_in_use.set(i64::from(used));
+        self.otel.pool(slots, used);
     }
 
     pub(crate) fn audit_healthy_set(&self, ok: bool) {

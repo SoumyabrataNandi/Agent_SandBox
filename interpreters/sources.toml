@@ -7,19 +7,19 @@
 [wasi_sdk]
 version = "33"
 url = "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-x86_64-linux.tar.gz"
-sha256 = ""
+sha256 = "0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce"
 
 [wasmtime_cli]
 # Host runner that CPython's WASI build uses to execute the freshly built python.wasm.
 version = "50.0.2"
 url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.2/wasmtime-v50.0.2-x86_64-linux.tar.xz"
-sha256 = ""
+sha256 = "5db0ca8e838ab95a51ba9acdf11f42888bcd0092dda45a86129ae540c4fa952c"
 
 [cpython]
 # Same version as the upstream asset in assets/manifest.toml, so the stdlib is shared.
 version = "3.15.2"
 url = "https://www.python.org/ftp/python/3.15.2/Python-3.15.2.tgz"
-sha256 = ""
+sha256 = "f74e1db0eabd651cd01e4e2a00201bd41866abe74869ab716f9bf33cbbaa0943"
 
 [quickjs]
 version = "0.18.0"

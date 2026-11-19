@@ -125,6 +125,11 @@ impl RunService {
         }
     }
 
+    /// Instance pool occupancy (None without pooling).
+    pub fn pool_status(&self) -> Option<sandboxd_runtime::PoolStatus> {
+        self.inner.sandbox.pool_status()
+    }
+
     /// Metrics registry (for `/metrics`).
     pub fn metrics(&self) -> &Metrics {
         &self.inner.metrics
@@ -227,12 +232,14 @@ impl RunService {
 
         // S5: run.
         m.running_add(1);
+        m.pool_set(self.inner.sandbox.pool_status());
         let mut result = self
             .inner
             .sandbox
             .execute(run_req, policy, &principal.0, events)
             .await;
         m.running_add(-1);
+        m.pool_set(self.inner.sandbox.pool_status());
         result.timings.queued_ms = queued_ms;
         result.timings.total_ms += queued_ms;
 

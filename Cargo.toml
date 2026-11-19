@@ -40,7 +40,7 @@ uuid = { version = "1.29", features = ["v4", "v7", "serde"] }
 regex = "1.13"
 thiserror = "2"
 proptest = "1"
-wasmtime = { version = "50.0.2", default-features = false, features = ["runtime", "cranelift", "async", "std", "parallel-compilation"] }
+wasmtime = { version = "50.0.2", default-features = false, features = ["runtime", "cranelift", "async", "std", "parallel-compilation", "pooling-allocator"] }
 wasmtime-wasi = { version = "50.0.2", default-features = false, features = ["p1"] }
 wiggle = { version = "50.0.2", default-features = false }
 zip = { version = "9.7", default-features = false, features = ["deflate"] }
