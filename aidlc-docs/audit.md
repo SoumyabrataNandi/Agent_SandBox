@@ -390,3 +390,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Python snapshot initialises and is compatible: 10/10 programs byte-identical (tracebacks, SyntaxError, sys.exit, argv/env, __main__, workload, atexit, chained, files); random re-seeded per run; snapshot built in 4.2 s (17 MB). But only 1.6x faster (77.6M vs 120M fuel). Causes identified in our harness/entry, not the approach: Py_FinalizeEx per run (full teardown of ~30 MB preloaded state); unfair baseline (CI stdlib had no bytecode); no pooling/CoW in the spike engine. Fixes: sandboxd-run uses PyRun_FileExFlags + CPython SystemExit rules + atexit + flushes, no Py_FinalizeEx; spike precompiles stdlib and uses the pooling engine. Re-running.
 
 ---
+
+## C3-U1 spike run 6 (104d42e)
+**Timestamp**: 2026-11-19
+**User Input**: (none)
+**AI Response**: Python 10/10 compatible; print(1) 4.02 vs 18.31 ms (4.56x), 11.5M vs 54.7M fuel (fair baseline with stdlib bytecode, pooled engine). JS 5/5 compatible, 0.30 vs 0.87 ms (2.9x), 65k vs 3.6M fuel. Next: gc.collect()+gc.freeze() at the end of wizer-initialize so per-run GC never rescans the preloaded objects. Re-running.
+
+---

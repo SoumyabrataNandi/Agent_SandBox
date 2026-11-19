@@ -38,7 +38,12 @@ static const char PRELOAD[] =
     "sys.path.append('/usr/local/lib/sandboxd')\n"
     "import sandbox_net\n"
     "for _name in ('socket', 'http.client', 'urllib.request'):\n"
-    "    sandbox_net._install(_name, sys.modules[_name])\n";
+    "    sandbox_net._install(_name, sys.modules[_name])\n"
+    /* Everything loaded so far lives for the whole run: move it to the permanent generation so
+     * the cyclic GC never re-scans the ~30 MB of preloaded objects during a run. */
+    "import gc\n"
+    "gc.collect()\n"
+    "gc.freeze()\n";
 
 /* Per-run fix-ups that a snapshot can't contain. */
 static const char PER_RUN[] =
