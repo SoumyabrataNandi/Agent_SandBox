@@ -252,7 +252,11 @@ impl Sandbox {
             // sizes a deeply recursing guest overflowed the *host* stack and crashed the process
             // (found by escape suite E-MEM / E-CRASH).
             .max_wasm_stack(1 << 20)
-            .async_stack_size(4 << 20);
+            .async_stack_size(4 << 20)
+            // Copy-on-write memory images even for large, sparse initial heaps (cycle-3 snapshots
+            // are ~40 MiB heaps with ~10 MB of data); the default 16 MiB limit made wasmtime copy
+            // every data segment on each instantiation (found by the C3-U1 spike).
+            .memory_guaranteed_dense_image_size(128 << 20);
         let engine = Engine::new(&wc).map_err(|e| RuntimeError::Compile(e.to_string()))?;
 
         let cache = ModuleCache::new(&cfg.vfs.cache_dir, &engine)?;

@@ -418,3 +418,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Report says go=true (5.04x wall), but fuel unchanged (11.47M), so the crossing is runner noise and the _Exit hypothesis was wrong; not accepted as a go. Phase measurements start after instantiation, so the ~9.8M gap is likely execution during instantiation (start function / memory init). Added instantiate fuel, module export shape and raw section listing (start/data sections) to the report. Re-running.
 
 ---
+
+## C3-U1 spike run 10 (7a5c005): root cause found
+**Timestamp**: 2026-11-19
+**User Input**: (none)
+**AI Response**: Instantiation of the snapshot costs 9.75M fuel ~= its 9.82 MB data section; no start section. wasmtime 50 initialises data segments with a compiled startup function (fuel-charged) unless the memory has a copy-on-write image, and only builds the image when the initialised range is dense or <= memory_guaranteed_dense_image_size (default 16 MiB). Wizer snapshots are large sparse heaps, so every instantiation copied all data. Set memory_guaranteed_dense_image_size(128 MiB) in the spike engine and in sandboxd's runtime engine (production snapshots need it). Re-running.
+
+---

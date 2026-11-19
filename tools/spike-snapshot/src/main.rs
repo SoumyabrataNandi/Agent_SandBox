@@ -53,7 +53,10 @@ fn engine() -> Res<Engine> {
     let mut c = Config::new();
     c.consume_fuel(true)
         .max_wasm_stack(1 << 20)
-        .async_stack_size(4 << 20);
+        .async_stack_size(4 << 20)
+        // A snapshot's initial heap is large and sparse; without this wasmtime skips the
+        // copy-on-write image and copies every data segment on each instantiation.
+        .memory_guaranteed_dense_image_size(128 << 20);
     let mut p = PoolingAllocationConfig::new();
     p.total_core_instances(16)
         .total_memories(16)
