@@ -21,6 +21,19 @@ struct Raw {
     audit: RawAudit,
     #[serde(default)]
     telemetry: RawTelemetry,
+    #[serde(default)]
+    network: RawNetworkCfg,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawNetworkCfg {
+    enabled: Option<bool>,
+    proxy: Option<String>,
+    #[serde(default)]
+    no_proxy: Vec<String>,
+    use_env_proxy: Option<bool>,
+    extra_ca_file: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -78,6 +91,32 @@ pub enum AuditDest {
     None,
 }
 
+/// Server-wide network settings (cycle 2, FR-N8/N9/N11.2).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NetworkConfig {
+    /// Kill switch: when `false`, policies that grant egress are refused at load.
+    pub enabled: bool,
+    /// Operator proxy (`http://host:port` or `https://…`), never taken from the guest.
+    pub proxy: Option<String>,
+    pub no_proxy: Vec<String>,
+    /// Use the process environment's `HTTPS_PROXY`/`NO_PROXY` (off by default).
+    pub use_env_proxy: bool,
+    /// Extra PEM CA bundle, added to the OS trust store.
+    pub extra_ca_file: Option<PathBuf>,
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            proxy: None,
+            no_proxy: Vec::new(),
+            use_env_proxy: false,
+            extra_ca_file: None,
+        }
+    }
+}
+
 /// Validated server configuration.
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
@@ -94,6 +133,7 @@ pub struct ServerConfig {
     pub audit: Option<AuditDest>,
     pub redact: Vec<(String, String)>,
     pub otlp_endpoint: Option<String>,
+    pub network: NetworkConfig,
 }
 
 impl Default for ServerConfig {
@@ -110,6 +150,7 @@ impl Default for ServerConfig {
             audit: None,
             redact: Vec::new(),
             otlp_endpoint: None,
+            network: NetworkConfig::default(),
         }
     }
 }
@@ -165,6 +206,23 @@ impl ServerConfig {
             .map(|r| (r.name, r.regex))
             .collect();
         c.otlp_endpoint = raw.telemetry.otlp_endpoint.filter(|e| !e.is_empty());
+        let n = raw.network;
+        if let Some(p) = &n.proxy {
+            let ok = (p.starts_with("http://") || p.starts_with("https://"))
+                && !p.contains(char::is_whitespace);
+            if !ok {
+                return Err(format!(
+                    "network.proxy {p:?}: must be an http:// or https:// URL"
+                ));
+            }
+        }
+        c.network = NetworkConfig {
+            enabled: n.enabled.unwrap_or(true),
+            proxy: n.proxy,
+            no_proxy: n.no_proxy,
+            use_env_proxy: n.use_env_proxy.unwrap_or(false),
+            extra_ca_file: n.extra_ca_file.map(abs),
+        };
         Ok(c)
     }
 
@@ -208,5 +266,32 @@ mod tests {
         assert!(c.check_bind_safety(true).is_ok());
         assert!(ServerConfig::default().check_bind_safety(false).is_ok());
         assert!(ServerConfig::from_toml("bogus = 1", std::path::Path::new(".")).is_err());
+        let n = ServerConfig::from_toml(
+            "[network]
+enabled = false
+proxy = \"http://proxy.corp:8080\"
+no_proxy = [\"internal.corp\"]
+extra_ca_file = \"ca.pem\"
+",
+            std::path::Path::new("/etc/sandboxd"),
+        )
+        .expect("network config");
+        assert!(!n.network.enabled && n.network.proxy.is_some() && !n.network.use_env_proxy);
+        assert!(
+            n.network
+                .extra_ca_file
+                .as_deref()
+                .is_some_and(|p| p.ends_with("ca.pem"))
+        );
+        assert!(
+            ServerConfig::from_toml(
+                "[network]
+proxy = \"socks5://x\"
+",
+                std::path::Path::new(".")
+            )
+            .is_err()
+        );
+        assert!(ServerConfig::default().network.enabled);
     }
 }

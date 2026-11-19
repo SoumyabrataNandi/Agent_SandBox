@@ -24,8 +24,11 @@ network:
   allow_private_ips: false
   max_requests: 5
   max_response_bytes: 1MiB
+  connect_timeout: 2s
+  request_timeout: 1500ms
   http:
     - { host: API.Example.com, port: 443, methods: [post, GET, get], path_prefix: /v1/ }
+    - { scheme: http, host: plain.example.com }
   tcp:
     - host: db.internal
       port: 5432

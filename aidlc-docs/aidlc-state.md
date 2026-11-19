@@ -4,8 +4,8 @@
 - **Project**: sandboxd — WebAssembly sandbox for agent-generated code
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
-- **Current Phase**: Cycle 1 COMPLETE (approved 2026-11-19) → OPERATIONS (placeholder)
-- **Current Stage**: Done. Next cycle candidates: OTLP exporter, Phase 4 network broker, Phase 5 performance
+- **Current Phase**: Cycle 2 — CONSTRUCTION
+- **Current Stage**: C2-U1 built & tested — awaiting approval
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -46,3 +46,32 @@ ustup + D:devrgo (user env vars); WSL route dropped (user request, storage); po
 | U4 Runtime | ✅ Approved 2026-11-18 |
 | U5 Server + CLI | ✅ Approved 2026-11-18 |
 | U6 Escape suite + release | ✅ Approved 2026-11-19 |
+
+---
+
+# Cycle 2
+
+## Workspace State (2026-11-19)
+- **Project Type**: Brownfield (cycle 1 code: 7 crates + escape suite, ~11.6k lines of Rust; CI green on 4 runners)
+- **Reverse Engineering**: SKIP. The cycle-1 inception/construction artifacts were written alongside the code and are current (last commit bd93879, clean tree).
+- **Artifacts root**: `aidlc-docs/cycle-2/`
+
+## Stage Progress
+- [x] Workspace Detection — brownfield, clean tree
+- [ ] Reverse Engineering — SKIP (cycle-1 docs current)
+- [x] Requirements Analysis — approved 2026-11-19
+- [ ] User Stories — SKIP
+- [x] Workflow Planning — approved 2026-11-19
+- [x] Application Design — answered (all recommended) 2026-11-19
+- [x] Units Generation — approved 2026-11-19
+- [ ] Construction (per unit)
+- [ ] Build and Test
+
+## Cycle 2 Construction Progress
+| Unit | Status |
+|---|---|
+| C2-U1 Policy/config/audit ext | Built & tested (combined gate) — awaiting approval |
+| C2-U2 sandboxd-net broker | Not started |
+| C2-U3 Guest integration | Not started |
+| C2-U4 OTLP exporter | Not started |
+| C2-U5 E-NET + release | Not started |

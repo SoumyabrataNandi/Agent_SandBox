@@ -55,11 +55,16 @@ fn full_golden_resolves_values_exactly() {
     assert_eq!(p.network().http[0].host, "api.example.com");
     assert_eq!(p.network().http[0].methods, vec!["GET", "POST"]);
     assert!(p.audit().log_code);
-    // Q3: valid shape, but grants egress → refused by this version.
-    let e = p
-        .ensure_supported()
-        .expect_err("network must be unsupported");
-    assert!(e.to_string().contains("network broker"));
+    // Cycle 2: network grants are supported; new fields resolve exactly.
+    p.ensure_supported()
+        .expect("network grants are supported since cycle 2");
+    let n = p.network();
+    assert_eq!(n.http[0].scheme, Scheme::Https);
+    assert_eq!(n.http[1].scheme, Scheme::Http);
+    assert_eq!(n.http[1].port, 80, "http scheme defaults to port 80");
+    assert_eq!(n.connect_timeout, Duration::from_secs(2));
+    assert_eq!(n.request_timeout, Duration::from_millis(1500));
+    assert_eq!(n.max_requests, 5);
 }
 
 #[test]
@@ -80,7 +85,7 @@ fn unknown_keys_rejected_at_any_depth() {
         format!("{HEAD}colour = 1"),
         format!("{HEAD}[limits]\ncpu = \"2s\""),
         format!("{HEAD}[[filesystem.mount]]\nguest=\"/a\"\nhost=\"/\"\nmode=\"ro\"\nextra=1"),
-        format!("{HEAD}[network]\nhttp = [{{ host = \"a\", scheme = \"https\" }}]"),
+        format!("{HEAD}[network]\nhttp = [{{ host = \"a\", wildcard = true }}]"),
     ] {
         assert!(toml(&src).is_err(), "{src}");
     }
@@ -137,6 +142,8 @@ fn guest_paths_validated() {
         "/usr/local/lib/python3.15",
         "/dev/sandbox/x",
         "/code",
+        "/usr/local/lib/sandboxd",
+        "/usr/local/lib/sandboxd/x",
         "/a\\\\b",
         "/a//b",
     ] {
@@ -177,6 +184,7 @@ fn host_paths_validated() {
 
     let opts = LoadOptions {
         forbidden_host_roots: vec![PathBuf::from(&h)],
+        ..LoadOptions::default()
     };
     let e = Policy::parse(&m(&h), "t", Format::Toml, &opts).expect_err("forbidden");
     assert!(e.to_string().contains("sandboxd-internal"), "{e}");
@@ -349,20 +357,10 @@ fn dir_load_is_all_or_nothing_and_reports_everything() {
     std::fs::write(d.join("wrongname.toml"), "version = 1\nname = \"other\"").expect("w");
     std::fs::write(d.join("dup.toml"), "version = 1\nname = \"dup\"").expect("w");
     std::fs::write(d.join("dup.yaml"), "version: 1\nname: dup\n").expect("w");
-    std::fs::write(
-        d.join("net.toml"),
-        "version = 1\nname = \"net\"\n[network]\ntcp = [{ host = \"db\", port = 5432 }]",
-    )
-    .expect("w");
     std::fs::write(d.join("broken.yaml"), "version: [\n").expect("w");
     let e = PolicyDir::load(&d, &LoadOptions::default()).expect_err("must fail");
     let text = e.to_string();
-    for needle in [
-        "wrongname",
-        "duplicate policy name",
-        "network broker",
-        "broken.yaml",
-    ] {
+    for needle in ["wrongname", "duplicate policy name", "broken.yaml"] {
         assert!(text.contains(needle), "missing {needle:?} in:\n{text}");
     }
     std::fs::remove_dir_all(&d).ok();
@@ -401,4 +399,89 @@ fn explain_shows_warnings_without_env_values() {
         "{x}"
     );
     assert!(x.contains("API_HINT") && !x.contains("very-secret"), "{x}");
+}
+
+// ---- cycle 2 (C2-U1): network grants, scheme, timeouts, kill switch ----
+
+#[test]
+fn network_grants_are_supported_and_explained() {
+    let p = toml(&format!(
+        "{HEAD}[network]\nallow_private_ips = true\nhttp = [{{ host = \"api.x\", path_prefix = \"/v1/\" }}, {{ scheme = \"http\", host = \"plain.x\" }}]\ntcp = [{{ host = \"db.x\", port = 5432 }}]"
+    ))
+    .expect("valid");
+    p.ensure_supported().expect("supported");
+    assert_eq!(
+        p.network().max_requests,
+        100,
+        "default request quota is usable"
+    );
+    let x = p.explain();
+    assert!(
+        x.contains("https://api.x:443/v1/")
+            && x.contains("http://plain.x:80/")
+            && x.contains("tcp://db.x:5432"),
+        "{x}"
+    );
+    assert!(x.contains("private IPs ALLOWED"), "{x}");
+    let w = p.warnings().join("\n");
+    assert!(
+        w.contains("allow_private_ips") && w.contains("unencrypted") && w.contains("not inspected"),
+        "{w}"
+    );
+}
+
+#[test]
+fn network_field_validation() {
+    assert!(
+        err_text(&format!(
+            "{HEAD}[network]\nhttp = [{{ host = \"a.x\", scheme = \"ftp\" }}]"
+        ))
+        .contains("scheme")
+    );
+    assert!(
+        err_text(&format!("{HEAD}[network]\nconnect_timeout = \"10ms\""))
+            .contains("network.connect_timeout")
+    );
+    assert!(
+        err_text(&format!("{HEAD}[network]\nrequest_timeout = \"2h\""))
+            .contains("network.request_timeout")
+    );
+    assert!(
+        toml(&format!(
+            "{HEAD}[network]\nhttp = [{{ host = \"https://a.x\" }}]"
+        ))
+        .is_err(),
+        "scheme belongs in `scheme`"
+    );
+}
+
+#[test]
+fn kill_switch_refuses_granting_policies_at_load() {
+    let d = tmpdir("killswitch");
+    std::fs::write(d.join("plain.toml"), "version = 1\nname = \"plain\"").expect("w");
+    std::fs::write(
+        d.join("net.toml"),
+        "version = 1\nname = \"net\"\n[network]\ntcp = [{ host = \"db\", port = 5432 }]",
+    )
+    .expect("w");
+    assert!(
+        PolicyDir::load(&d, &LoadOptions::default()).is_ok(),
+        "enabled by default"
+    );
+    let off = LoadOptions {
+        network_enabled: false,
+        ..LoadOptions::default()
+    };
+    let e = PolicyDir::load(&d, &off).expect_err("refused when disabled");
+    assert!(
+        e.to_string()
+            .contains("network access is disabled on this server"),
+        "{e}"
+    );
+    std::fs::remove_file(d.join("net.toml")).expect("rm");
+    assert!(
+        PolicyDir::load(&d, &off).is_ok(),
+        "non-granting policies still load"
+    );
+    std::fs::remove_dir_all(&d).ok();
 }

@@ -59,6 +59,8 @@ pub enum LimitKind {
     Artifacts,
     /// Request input files exceeded the policy's `input_bytes`.
     Inputs,
+    /// A network quota (requests, bytes, timeouts) was exhausted (cycle 2).
+    Network,
 }
 
 /// How a run ended.
@@ -167,23 +169,46 @@ pub enum EventKind {
         #[serde(skip_serializing_if = "Option::is_none")]
         requested: Option<String>,
     },
-    /// Reserved for the Phase 4 network broker.
+    /// One HTTP exchange or redirect hop through the broker (cycle 2, FR-N10).
+    /// Bodies and header values are never recorded.
     #[serde(rename = "net.request")]
     NetRequest {
         proto: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        scheme: Option<String>,
         host: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         ip: Option<String>,
         port: u16,
         #[serde(skip_serializing_if = "Option::is_none")]
         method: Option<String>,
+        /// Path with the query string redacted.
         #[serde(skip_serializing_if = "Option::is_none")]
         path: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         status: Option<u16>,
+        /// 0 for the original request, 1.. for redirect hops.
+        hop: u32,
         bytes_out: u64,
         bytes_in: u64,
+        duration_ms: u64,
         decision: Decision,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reason: Option<String>,
+    },
+    /// A raw TCP session through the broker, recorded when it closes (cycle 2, FR-N7).
+    #[serde(rename = "net.connect")]
+    NetConnect {
+        host: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ip: Option<String>,
+        port: u16,
+        bytes_out: u64,
+        bytes_in: u64,
+        duration_ms: u64,
+        decision: Decision,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reason: Option<String>,
     },
     #[serde(rename = "audit.dropped")]
     Dropped { count: u64 },
@@ -240,11 +265,22 @@ impl EventKind {
                 opt(requested);
             }
             EventKind::NetRequest {
-                host, path, method, ..
+                host,
+                path,
+                method,
+                reason,
+                scheme,
+                ..
             } => {
                 field(host);
                 opt(path);
                 opt(method);
+                opt(reason);
+                opt(scheme);
+            }
+            EventKind::NetConnect { host, reason, .. } => {
+                field(host);
+                opt(reason);
             }
             EventKind::LimitHit { .. }
             | EventKind::Dropped { .. }

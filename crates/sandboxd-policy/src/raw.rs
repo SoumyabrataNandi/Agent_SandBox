@@ -64,6 +64,8 @@ pub(crate) struct RawNetwork {
     pub max_request_bytes: Option<Quantity>,
     pub max_response_bytes: Option<Quantity>,
     pub max_total_bytes: Option<Quantity>,
+    pub connect_timeout: Option<Quantity>,
+    pub request_timeout: Option<Quantity>,
     pub http: Option<Vec<RawHttpRule>>,
     pub tcp: Option<Vec<RawTcpRule>>,
 }
@@ -71,6 +73,7 @@ pub(crate) struct RawNetwork {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RawHttpRule {
+    pub scheme: Option<String>,
     pub host: String,
     pub port: Option<u16>,
     pub methods: Option<Vec<String>>,

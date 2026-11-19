@@ -100,6 +100,13 @@ impl PolicyDir {
                         errs.extend(e.0);
                         continue;
                     }
+                    if !opts.network_enabled && p.network().grants_anything() {
+                        errs.push(PolicyError::Unsupported {
+                            origin: p.origin().to_string(),
+                            feature: "this policy grants network egress, but network access is disabled on this server ([network] enabled = false)".into(),
+                        });
+                        continue;
+                    }
                     if let Some(prev) = by_name.get(p.name()) {
                         errs.push(PolicyError::Invalid {
                             origin: f.display().to_string(),

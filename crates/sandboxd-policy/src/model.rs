@@ -23,6 +23,8 @@ pub const STDLIB_GUEST_PATH: &str = "/usr/local/lib/python3.15";
 pub const DEVICE_GUEST_PATH: &str = "/dev/sandbox";
 /// Guest path where the runtime places the submitted program (read-only; U4 design Q4).
 pub const CODE_GUEST_PATH: &str = "/code";
+/// Guest path of the sandboxd guest helpers (`sandbox_net`, bootstraps; cycle 2 ADR-C2-3).
+pub const HELPER_GUEST_PATH: &str = "/usr/local/lib/sandboxd";
 /// Env keys the runtime controls; policies cannot set them.
 pub const RESERVED_ENV: &[&str] = &[
     "PYTHONHOME",
@@ -72,6 +74,10 @@ mod range {
     pub const ARTIFACT_COUNT: (u32, u32) = (0, 1000);
     pub const ARTIFACT_BYTES: (ByteSize, ByteSize) = (ByteSize(0), ByteSize::gib(1));
     pub const INPUT_BYTES: (ByteSize, ByteSize) = (ByteSize(0), ByteSize::gib(1));
+    pub const CONNECT_TIMEOUT: (Duration, Duration) =
+        (Duration::from_millis(100), Duration::from_secs(60));
+    pub const REQUEST_TIMEOUT: (Duration, Duration) =
+        (Duration::from_millis(100), Duration::from_secs(600));
     pub const IDLE_TTL: (Duration, Duration) =
         (Duration::from_secs(1), Duration::from_secs(86_400));
 }
@@ -110,9 +116,35 @@ pub struct Filesystem {
     pub mounts: Vec<Mount>,
 }
 
-/// HTTP egress rule (Phase 4).
+/// URL scheme an HTTP rule allows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Scheme {
+    /// TLS, verified against the OS trust store (default).
+    Https,
+    /// Unencrypted; must be requested explicitly with `scheme = "http"`.
+    Http,
+}
+impl Scheme {
+    /// `"https"` / `"http"`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Scheme::Https => "https",
+            Scheme::Http => "http",
+        }
+    }
+    /// Default port for the scheme.
+    pub fn default_port(self) -> u16 {
+        match self {
+            Scheme::Https => 443,
+            Scheme::Http => 80,
+        }
+    }
+}
+
+/// HTTP egress rule (cycle 2, FR-N4).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpRule {
+    pub scheme: Scheme,
     pub host: String,
     pub port: u16,
     pub methods: Vec<String>,
@@ -126,14 +158,18 @@ pub struct TcpRule {
     pub port: u16,
 }
 
-/// Network section (validated now, enforced in Phase 4).
+/// Network section (cycle 2: enforced by the `sandboxd-net` broker).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NetworkPolicy {
     pub allow_private_ips: bool,
     pub max_requests: u32,
     pub max_request_bytes: ByteSize,
     pub max_response_bytes: ByteSize,
+    /// All bytes in + out, HTTP and TCP combined, per run.
     pub max_total_bytes: ByteSize,
+    pub connect_timeout: Duration,
+    /// Per HTTP request (all redirect hops) and TCP idle timeout; also bounded by the run's wall clock.
+    pub request_timeout: Duration,
     pub http: Vec<HttpRule>,
     pub tcp: Vec<TcpRule>,
 }
@@ -141,10 +177,12 @@ impl Default for NetworkPolicy {
     fn default() -> Self {
         Self {
             allow_private_ips: false,
-            max_requests: 0,
+            max_requests: 100,
             max_request_bytes: ByteSize::mib(1),
             max_response_bytes: ByteSize::mib(10),
             max_total_bytes: ByteSize::mib(50),
+            connect_timeout: Duration::from_secs(5),
+            request_timeout: Duration::from_secs(30),
             http: Vec::new(),
             tcp: Vec::new(),
         }
@@ -227,10 +265,22 @@ impl Overrides {
 }
 
 /// Host-side context for validation.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct LoadOptions {
     /// Host directories that mounts must not be inside, or contain (cache, audit log dir, policy dir; rule R6).
     pub forbidden_host_roots: Vec<PathBuf>,
+    /// Server-wide network kill switch (FR-N11.2). When `false`, `PolicyDir::load` refuses
+    /// policies that grant egress.
+    pub network_enabled: bool,
+}
+
+impl Default for LoadOptions {
+    fn default() -> Self {
+        Self {
+            forbidden_host_roots: Vec::new(),
+            network_enabled: true,
+        }
+    }
 }
 
 /// Source format.
@@ -365,12 +415,6 @@ impl Policy {
     /// `PolicyDir::load` calls this; `policy check` reports it alongside validation.
     pub fn ensure_supported(&self) -> Result<(), PolicyErrors> {
         let mut errs = Vec::new();
-        if self.spec.network.grants_anything() {
-            errs.push(PolicyError::Unsupported {
-                origin: self.origin.clone(),
-                feature: "network.http / network.tcp grant egress, which requires the network broker (not in this version)".into(),
-            });
-        }
         if self.spec.session.enabled {
             errs.push(PolicyError::Unsupported {
                 origin: self.origin.clone(),
@@ -501,15 +545,34 @@ impl Policy {
         for r in &s.network.http {
             let _ = writeln!(
                 o,
-                "  http {}:{} {} {}",
+                "  {}://{}:{}{}  [{}]",
+                r.scheme.as_str(),
                 r.host,
                 r.port,
-                r.methods.join(","),
-                r.path_prefix
+                r.path_prefix,
+                r.methods.join(",")
             );
         }
         for r in &s.network.tcp {
-            let _ = writeln!(o, "  tcp  {}:{}", r.host, r.port);
+            let _ = writeln!(o, "  tcp://{}:{}", r.host, r.port);
+        }
+        if s.network.grants_anything() {
+            let n = &s.network;
+            let _ = writeln!(
+                o,
+                "  quotas: {} requests, {} out/request, {} in/response, {} total; connect {}, request {}; private IPs {}",
+                n.max_requests,
+                n.max_request_bytes,
+                n.max_response_bytes,
+                n.max_total_bytes,
+                fmt_duration(n.connect_timeout),
+                fmt_duration(n.request_timeout),
+                if n.allow_private_ips {
+                    "ALLOWED"
+                } else {
+                    "blocked"
+                }
+            );
         }
         let _ = writeln!(
             o,
@@ -560,8 +623,17 @@ impl Policy {
                 s.limits.memory
             ));
         }
-        if s.network.grants_anything() {
-            w.push("network rules require the network broker (Phase 4) and are refused by this version".into());
+        if s.network.grants_anything() && s.network.allow_private_ips {
+            w.push("network.allow_private_ips = true: guests may reach internal/private addresses (cloud metadata stays blocked unless listed as an IP rule)".into());
+        }
+        for r in s.network.http.iter().filter(|r| r.scheme == Scheme::Http) {
+            w.push(format!("http://{}:{} is unencrypted", r.host, r.port));
+        }
+        for r in &s.network.tcp {
+            w.push(format!(
+                "tcp://{}:{}: raw TCP content is not inspected; only destination and byte counts are audited",
+                r.host, r.port
+            ));
         }
         if s.session.enabled {
             w.push("sessions require Phase 5 and are refused by this version".into());
@@ -821,6 +893,7 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
         (STDLIB_GUEST_PATH.into(), "the Python stdlib".into()),
         (DEVICE_GUEST_PATH.into(), "sandbox devices".into()),
         (CODE_GUEST_PATH.into(), "the submitted program".into()),
+        (HELPER_GUEST_PATH.into(), "sandboxd guest helpers".into()),
     ];
     for (p, label, field) in [
         (&inputs, "filesystem.inputs", "filesystem.inputs"),
@@ -939,7 +1012,7 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
         }
     }
 
-    // network (validated now, refused by ensure_supported until Phase 4)
+    // network (cycle 2: enforced by the broker)
     let rn = raw.network.unwrap_or_default();
     let nd = NetworkPolicy::default();
     let net_cap = (ByteSize(0), ByteSize::gib(1));
@@ -964,6 +1037,18 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
             nd.max_total_bytes,
             net_cap,
         ),
+        connect_timeout: v.duration(
+            "network.connect_timeout",
+            rn.connect_timeout.as_ref(),
+            nd.connect_timeout,
+            range::CONNECT_TIMEOUT,
+        ),
+        request_timeout: v.duration(
+            "network.request_timeout",
+            rn.request_timeout.as_ref(),
+            nd.request_timeout,
+            range::REQUEST_TIMEOUT,
+        ),
         http: Vec::new(),
         tcp: Vec::new(),
     };
@@ -979,7 +1064,18 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
                 ),
             );
         }
-        let port = r.port.unwrap_or(443);
+        let scheme = match r.scheme.as_deref().map(str::to_ascii_lowercase).as_deref() {
+            None | Some("https") => Scheme::Https,
+            Some("http") => Scheme::Http,
+            Some(other) => {
+                v.err(
+                    format!("{path}.scheme"),
+                    format!("{other:?} must be \"https\" or \"http\""),
+                );
+                Scheme::Https
+            }
+        };
+        let port = r.port.unwrap_or(scheme.default_port());
         if port == 0 {
             v.err(format!("{path}.port"), "must be 1..=65535");
         }
@@ -1007,6 +1103,7 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
             );
         }
         network.http.push(HttpRule {
+            scheme,
             host,
             port,
             methods,

@@ -252,6 +252,7 @@ fn load_policies(cfg: &ServerConfig, audit_path: &str) -> Result<PolicyDir, Stri
             dir,
             &LoadOptions {
                 forbidden_host_roots: forbidden,
+                network_enabled: cfg.network.enabled,
             },
         )
         .map_err(|e| e.to_string()),

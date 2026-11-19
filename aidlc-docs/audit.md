@@ -220,3 +220,47 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: U6 and Build & Test approved; AI-DLC cycle 1 (Phases 1–3) closed. Deferred to next cycle: OTLP exporter (R6), Phase 4 network broker (ADR-002), Phase 5 snapshots/pooling/sessions/benchmarks. Release is user-triggered via a `v*` tag (draft release for review).
 
 ---
+
+# Cycle 2
+
+## Cycle 2 start — Workspace Detection
+**Timestamp**: 2026-11-19
+**User Input**: "Now you can start cycle 2"
+**AI Response**: Brownfield detected (clean tree, in sync with origin, ~11.6k lines of Rust). Reverse Engineering skipped (cycle-1 artifacts current). Issued aidlc-docs/cycle-2/inception/requirements/requirement-verification-questions.md (10 questions: scope, guest HTTP API, raw TCP, TLS trust, proxy, redirects, SSRF/private IPs, credential injection, OTLP scope, body logging).
+
+---
+
+## Cycle 2 — Requirements answers & draft
+**Timestamp**: 2026-11-19
+**User Input**: "accept recommended defaults"
+**AI Response**: Q1–Q10 = A. Generated cycle-2/inception/requirements/requirements.md: FR-N1..N11 (broker, transparent guest APIs, HTTP semantics, allowlist, SSRF/rebinding with IP pinning, quotas, raw TCP, OS trust store, operator proxy, audit without bodies, kill switch), FR-O1 (OTLP behind feature), NFR-N1..N6, 10 acceptance criteria. Awaiting approval.
+
+---
+
+## Cycle 2 — Requirements approved; Workflow Planning
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: Generated cycle-2/inception/plans/execution-plan.md: Application Design + light Units Generation, 5 units (C2-U1 policy/config/audit ext, C2-U2 sandboxd-net broker, C2-U3 guest integration, C2-U4 OTLP, C2-U5 E-NET + CI). Awaiting approval.
+
+---
+
+## Cycle 2 — Workflow Planning approved; Application Design issued
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: Research: reqwest 0.13.5 already in tree (via rmcp); its rustls default uses rustls-platform-verifier (OS trust store) and supports extra roots, custom Resolve, and redirect Policy::none. Generated cycle-2/inception/application-design/application-design.md (components, data flow, ADR-C2-1..6, threat additions T13–T18, R8) and design-questions.md (5 questions). Awaiting answers.
+
+---
+
+## Cycle 2 — Application Design answers; Units Generation
+**Timestamp**: 2026-11-19
+**User Input**: "accept recommended defaults"
+**AI Response**: Design Q1–Q5 = A. Generated cycle-2/inception/application-design/unit-of-work.md (C2-U1..U5 with gates; U1/U4 combined design+code gates; U2/U3 full flow). Awaiting approval.
+
+---
+
+## Cycle 2 — Units approved; C2-U1 built
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: C2-U1 (combined design+code): policy scheme/timeouts/kill switch/helper path, ensure_supported accepts grants, max_requests default 0→100 (latent defect), audit LimitKind::Network + net.request fields + net.connect, server [network] config, CLI wiring. 107 workspace tests pass, clippy clean. Summary: cycle-2/construction/c2-u1-policy-config-audit/design-and-summary.md. Awaiting approval.
+
+---

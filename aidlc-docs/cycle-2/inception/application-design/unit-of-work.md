@@ -1,0 +1,14 @@
+# Cycle 2 Units of Work
+
+Design answers Q1–Q5: all recommended (reqwest + pinning resolver, length-prefixed frames, trimmed tracebacks, proxies allowed with residual R8, per-run pools).
+
+| Unit | Scope | Key deliverables | Gate (tests) | Design depth |
+|---|---|---|---|---|
+| **C2-U1** Policy, config, audit extensions | FR-N11, N3.1, N6, audit fields | Policy: rule `scheme` (`https` default / `http`), `connect_timeout` / `request_timeout` (ranges), `ensure_supported` accepts grants, reserved `/usr/local/lib/sandboxd`, `explain` warnings. Audit: `LimitKind::Network`, `NetRequest` (+`scheme`, `reason`, `duration_ms`), `NetConnect`. Server config: `[network] enabled/proxy/no_proxy/use_env_proxy/extra_ca_file`; kill switch at policy load | Policy + audit unit tests, golden JSON, TOML/YAML parity for the new fields, AC 8 | Light (combined with code) |
+| **C2-U2** `sandboxd-net` broker | FR-N1, N3–N10 (host side), ADR-C2-1/2/4/5 | URL normalization; allowlist matcher; IP classifier incl. mapped/compatible v6; pinning resolver; per-run reqwest client (OS trust + extra CA + proxy); HTTP exchange with a manual redirect loop; frame codec; `HttpDevice` / `TcpDevice`; quotas; `net.request` / `net.connect` audit; `RunNet::finish` | Unit tests for normalization/matching/IP classes (+ proptests); integration tests against local HTTP/HTTPS (test CA) and TCP echo servers driving the devices directly | **Full** (highest risk) |
+| **C2-U3** Guest integration | FR-N2, ADR-C2-3 | `guest/boot.py`, `guest/sandbox_net.py` (fetch, connect, urllib handlers, socket patch, traceback trim), `guest/boot.mjs` (fetch/Headers/Response); embedding + hash-keyed extraction + ro mount; runtime registers devices via `Broker::for_run`; `RuntimeConfig.broker` | Real CPython/QuickJS: urllib, `http.client`, `fetch`, `socket.create_connection`; tracebacks unchanged; no-grant errors; all cycle-1 runtime tests still pass | Full |
+| **C2-U4** OTLP exporter | FR-O1, ADR-C2-6 | `otel` feature in server; OTLP/HTTP metrics + `sandboxd.run` span; config wiring; clean shutdown; CI job building with `--features otel` | Test against an in-process OTLP/HTTP collector stub; the default build has no opentelemetry in `cargo tree` | Light |
+| **C2-U5** E-NET + release | NFR-N1/N2, AC 1–10, threat model T13–T18/R8 | Escape-suite E-NET family with local servers and a test CA; CI keeps the release gate; THREAT_MODEL update; docs (network policy examples, proxy guidance) | E-NET green on all 4 runners; supply chain clean; perf smoke unchanged | Medium |
+
+**Order:** U1 → U2 → U3 → U5, with U4 alongside U2 (it only depends on U1).
+**Combined gates:** U1 and U4 are small and mechanical, so I'll present their design and code together for one approval each. U2 and U3 get the full design → questions → code → approval flow.
