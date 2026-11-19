@@ -383,3 +383,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: First complete run. Both reactors built (CPython 32 MB unstripped; QuickJS). JavaScript snapshot: 5/5 programs byte-identical; console.log(1) 65k vs 3.63M fuel (55x fewer instructions), 0.49 vs 1.15 ms (2.4x). Python: wizer-initialize exited 70 in the preload step (Python error text not captured). Fixes: link with PY_CORE_LDFLAGS (WASI stack/memory flags were missing; PY_LDFLAGS was empty) + --strip-debug; spike tool captures init stdout/stderr. Re-running.
 
 ---
+
+## C3-U1 spike run 5 (b29941e)
+**Timestamp**: 2026-11-19
+**User Input**: (none)
+**AI Response**: Python snapshot initialises and is compatible: 10/10 programs byte-identical (tracebacks, SyntaxError, sys.exit, argv/env, __main__, workload, atexit, chained, files); random re-seeded per run; snapshot built in 4.2 s (17 MB). But only 1.6x faster (77.6M vs 120M fuel). Causes identified in our harness/entry, not the approach: Py_FinalizeEx per run (full teardown of ~30 MB preloaded state); unfair baseline (CI stdlib had no bytecode); no pooling/CoW in the spike engine. Fixes: sandboxd-run uses PyRun_FileExFlags + CPython SystemExit rules + atexit + flushes, no Py_FinalizeEx; spike precompiles stdlib and uses the pooling engine. Re-running.
+
+---

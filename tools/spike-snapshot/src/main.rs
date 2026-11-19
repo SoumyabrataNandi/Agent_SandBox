@@ -21,7 +21,9 @@ use std::{
 };
 
 use serde_json::{Value, json};
-use wasmtime::{Config, Engine, Linker, Module, Store};
+use wasmtime::{
+    Config, Engine, InstanceAllocationStrategy, Linker, Module, PoolingAllocationConfig, Store,
+};
 use wasmtime_wasi::{FsPerms, I32Exit, WasiCtxBuilder, p1::WasiP1Ctx, p2::pipe::MemoryOutputPipe};
 
 type Res<T> = Result<T, String>;
@@ -45,12 +47,49 @@ struct Outcome {
     fuel: u64,
 }
 
+/// Same engine settings as sandboxd, including the pooling allocator (copy-on-write memory init
+/// on Linux), so instantiation costs match production.
 fn engine() -> Res<Engine> {
     let mut c = Config::new();
     c.consume_fuel(true)
         .max_wasm_stack(1 << 20)
         .async_stack_size(4 << 20);
+    let mut p = PoolingAllocationConfig::new();
+    p.total_core_instances(16)
+        .total_memories(16)
+        .total_tables(16)
+        .total_stacks(16);
+    c.allocation_strategy(InstanceAllocationStrategy::Pooling(p));
     Engine::new(&c).map_err(|e| e.to_string())
+}
+
+/// sandboxd precompiles the stdlib to bytecode at start-up; do the same here so the upstream
+/// baseline is today's real cost (not stdlib compilation from source).
+async fn compile_stdlib(cx: &Ctx, upstream: &Module) -> Res<()> {
+    let r = run_with(
+        cx,
+        upstream,
+        "_start",
+        &[
+            "python",
+            "-I",
+            "-S",
+            "-m",
+            "compileall",
+            "-q",
+            "--invalidation-mode",
+            "unchecked-hash",
+            STDLIB_GUEST,
+        ],
+        &[],
+        &[(cx.stdlib.as_path(), STDLIB_GUEST)],
+        FsPerms::ReadWrite,
+    )
+    .await?;
+    if r.exit > 1 {
+        return Err(format!("compileall exit {}: {}", r.exit, r.stderr));
+    }
+    Ok(())
 }
 
 fn linker(engine: &Engine) -> Res<Linker<WasiP1Ctx>> {
@@ -59,7 +98,7 @@ fn linker(engine: &Engine) -> Res<Linker<WasiP1Ctx>> {
     Ok(l)
 }
 
-/// One run: fresh store, given argv/env/mounts, call `entry`.
+/// One run: fresh store, given argv/env/read-only mounts, call `entry`.
 async fn run(
     cx: &Ctx,
     module: &Module,
@@ -67,6 +106,19 @@ async fn run(
     argv: &[&str],
     env: &[(&str, &str)],
     mounts: &[(&Path, &str)],
+) -> Res<Outcome> {
+    run_with(cx, module, entry, argv, env, mounts, FsPerms::ReadOnly).await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_with(
+    cx: &Ctx,
+    module: &Module,
+    entry: &str,
+    argv: &[&str],
+    env: &[(&str, &str)],
+    mounts: &[(&Path, &str)],
+    perms: FsPerms,
 ) -> Res<Outcome> {
     let out = MemoryOutputPipe::new(1 << 20);
     let err = MemoryOutputPipe::new(1 << 20);
@@ -76,7 +128,7 @@ async fn run(
         .stdout(out.clone())
         .stderr(err.clone());
     for (host, guest) in mounts {
-        b.preopened_dir(host, guest, FsPerms::ReadOnly)
+        b.preopened_dir(host, guest, perms)
             .map_err(|e| format!("preopen {guest}: {e}"))?;
     }
     let mut store = Store::new(&cx.engine, b.build_p1());
@@ -207,6 +259,9 @@ async fn python(cx: &Ctx, upstream: &Path, custom: Option<&Path>) -> Value {
         Ok(m) => m,
         Err(e) => return json!({"error": format!("compile upstream: {e}")}),
     };
+    if let Err(e) = compile_stdlib(cx, &up).await {
+        return json!({"error": format!("stdlib bytecode: {e}")});
+    }
     let Some(custom) = custom else {
         return json!({"error": "custom python module missing (build failed?)"});
     };

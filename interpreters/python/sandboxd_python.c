@@ -9,9 +9,10 @@
  *                     resetting wasi-libc's preopen table and environment, so nothing that is
  *                     specific to the init environment survives into runs.
  *   sandboxd-run      one program: applies this run's argv, environment and random seed, then
- *                     runs /code/main.py natively (PyRun_SimpleFileExFlags), exactly as CPython's
- *                     own `python file.py` does: same tracebacks, SystemExit handling and exit
- *                     codes, and no Python-level compile() (design Q2).
+ *                     runs /code/main.py natively (PyRun_FileExFlags), with CPython's own
+ *                     traceback printing (PyErr_Print), SystemExit exit-code rules, atexit
+ *                     callbacks and stream flushing, and no Python-level compile() (design Q2).
+ *                     It deliberately skips Py_FinalizeEx(): the instance is discarded.
  *
  * The runtime passes argv = ["python", "/code/main.py", <args>...].
  */
@@ -148,6 +149,56 @@ static void apply_environ(void) {
     Py_DECREF(posix);
 }
 
+/* Exit status for an uncaught SystemExit, as CPython's handle_system_exit computes it. */
+static int system_exit_code(PyObject *exc) {
+    PyObject *code = PyObject_GetAttrString(exc, "code");
+    if (code == NULL) {
+        PyErr_Clear();
+        return 1;
+    }
+    int status = 1;
+    if (code == Py_None) {
+        status = 0;
+    } else if (PyLong_Check(code)) {
+        long v = PyLong_AsLong(code);
+        if (v == -1 && PyErr_Occurred()) {
+            PyErr_Clear();
+        } else {
+            status = (int)v;
+        }
+    } else {
+        /* sys.exit("message"): the message goes to stderr, status 1. */
+        PyObject *err = PySys_GetObject("stderr"); /* borrowed */
+        if (err != NULL && err != Py_None) {
+            PyFile_WriteObject(code, err, Py_PRINT_RAW);
+            PyFile_WriteString("\n", err);
+        }
+        PyErr_Clear();
+    }
+    Py_DECREF(code);
+    return status;
+}
+
+/* Flush sys.stdout then sys.stderr; -1 if a flush failed (CPython exits 120 then). */
+static int flush_std_streams(void) {
+    int rc = 0;
+    const char *names[] = {"stdout", "stderr"};
+    for (int i = 0; i < 2; i++) {
+        PyObject *f = PySys_GetObject(names[i]); /* borrowed */
+        if (f == NULL || f == Py_None) {
+            continue;
+        }
+        PyObject *r = PyObject_CallMethod(f, "flush", NULL);
+        if (r == NULL) {
+            PyErr_Clear();
+            rc = -1;
+        } else {
+            Py_DECREF(r);
+        }
+    }
+    return rc;
+}
+
 __attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
     apply_argv();
     apply_environ();
@@ -166,11 +217,46 @@ __attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
         fprintf(stderr, "python: can't open file '%s': [Errno %d] %s\n", path, errno, strerror(errno));
         exit(2);
     }
+    /* As CPython's _PyRun_SimpleFileObject: __file__ is set in __main__ for the run. */
+    PyObject *main_dict = PyModule_GetDict(PyImport_AddModule("__main__")); /* borrowed */
+    PyObject *file = PyUnicode_DecodeFSDefault(path);
+    int set_file = file != NULL && PyDict_GetItemString(main_dict, "__file__") == NULL;
+    if (set_file && PyDict_SetItemString(main_dict, "__file__", file) < 0) {
+        fatal("__file__");
+    }
+    Py_XDECREF(file);
+
     PyCompilerFlags cf = {.cf_flags = 0, .cf_feature_version = PY_MINOR_VERSION};
-    /* Handles SystemExit itself (finalises and exits with its code). */
-    int rc = PyRun_SimpleFileExFlags(fp, path, 1, &cf);
-    int status = rc == 0 ? 0 : 1;
-    if (Py_FinalizeEx() < 0) {
+    PyObject *res = PyRun_FileExFlags(fp, path, Py_file_input, main_dict, main_dict, 1, &cf);
+    /* CPython flushes right after the file runs (flush_io), before printing a traceback. */
+    {
+        PyObject *pending = PyErr_GetRaisedException();
+        (void)flush_std_streams();
+        PyErr_SetRaisedException(pending);
+    }
+    int status = 0;
+    if (res == NULL) {
+        PyObject *exc = PyErr_GetRaisedException();
+        if (exc != NULL && PyErr_GivenExceptionMatches(exc, PyExc_SystemExit)) {
+            status = system_exit_code(exc);
+            Py_DECREF(exc);
+        } else {
+            PyErr_SetRaisedException(exc);
+            PyErr_Print(); /* sys.excepthook: the same traceback as `python file.py` */
+            status = 1;
+        }
+    } else {
+        Py_DECREF(res);
+    }
+    if (set_file) {
+        PyDict_DelItemString(main_dict, "__file__");
+        PyErr_Clear();
+    }
+    /* What an interpreter exit makes observable (atexit callbacks, then flushed std streams),
+     * without Py_FinalizeEx(): tearing down every preloaded module and collecting ~30 MB of
+     * objects costs tens of millions of instructions, for an instance that is discarded anyway. */
+    run_private("import atexit as _atexit\n_atexit._run_exitfuncs()\n", "atexit");
+    if (flush_std_streams() < 0 && status == 0) {
         status = 120;
     }
     exit(status);
