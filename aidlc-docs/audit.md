@@ -397,3 +397,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Python 10/10 compatible; print(1) 4.02 vs 18.31 ms (4.56x), 11.5M vs 54.7M fuel (fair baseline with stdlib bytecode, pooled engine). JS 5/5 compatible, 0.30 vs 0.87 ms (2.9x), 65k vs 3.6M fuel. Next: gc.collect()+gc.freeze() at the end of wizer-initialize so per-run GC never rescans the preloaded objects. Re-running.
 
 ---
+
+## C3-U1 spike run 7 (fb47a29)
+**Timestamp**: 2026-11-19
+**User Input**: (none)
+**AI Response**: gc.freeze() did not change the snapshot run's fuel (11.48M; 4.5x wall), so GC is not the cost. Added a `sandboxd-step` diagnostic export (argv, environ, per-run setup, run file, exit effects) and a per-phase fuel profile in the spike report. Re-running.
+
+---

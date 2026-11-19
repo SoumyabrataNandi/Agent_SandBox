@@ -204,11 +204,8 @@ static int flush_std_streams(void) {
     return rc;
 }
 
-__attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
-    apply_argv();
-    apply_environ();
-    run_private(PER_RUN, "per-run setup failed");
-
+/* Phase: run /code/main.py (argv[0]); returns the exit status CPython would use. */
+static int run_main_file(void) {
     const char *path = "/code/main.py";
     PyObject *argv = PySys_GetObject("argv"); /* borrowed */
     if (argv != NULL && PyList_Check(argv) && PyList_GET_SIZE(argv) > 0) {
@@ -257,6 +254,11 @@ __attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
         PyDict_DelItemString(main_dict, "__file__");
         PyErr_Clear();
     }
+    return status;
+}
+
+/* Phase: interpreter-exit effects (atexit callbacks, flushed streams); returns the final status. */
+static int finish(int status) {
     /* What an interpreter exit makes observable (atexit callbacks, then flushed std streams),
      * without Py_FinalizeEx(): tearing down every preloaded module and collecting ~30 MB of
      * objects costs tens of millions of instructions, for an instance that is discarded anyway. */
@@ -264,5 +266,27 @@ __attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
     if (flush_std_streams() < 0 && status == 0) {
         status = 120;
     }
-    exit(status);
+    return status;
+}
+
+__attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
+    apply_argv();
+    apply_environ();
+    run_private(PER_RUN, "per-run setup failed");
+    exit(finish(run_main_file()));
+}
+
+/* Diagnostics for the C3-U1 spike: the phases of sandboxd-run one at a time, so their cost
+ * (fuel) can be measured separately. 1 argv, 2 environ, 3 per-run setup, 4 run the file,
+ * 5 exit effects (the process is not exited). */
+static int g_status;
+__attribute__((export_name("sandboxd-step"))) void sandboxd_step(int step) {
+    switch (step) {
+    case 1: apply_argv(); break;
+    case 2: apply_environ(); break;
+    case 3: run_private(PER_RUN, "per-run setup failed"); break;
+    case 4: g_status = run_main_file(); break;
+    case 5: g_status = finish(g_status); break;
+    default: break;
+    }
 }

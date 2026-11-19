@@ -189,6 +189,64 @@ async fn snapshot(cx: &Ctx, wasm: &[u8], argv0: &str) -> Res<Vec<u8>> {
         })
 }
 
+/// Fuel per phase of `sandboxd-run` (via the `sandboxd-step` diagnostic export), for `print(1)`.
+async fn phase_profile(cx: &Ctx, snap: &Module) -> Value {
+    let Ok(dir) = code_dir(
+        cx,
+        "py-phases",
+        "main.py",
+        "print(1)
+",
+    ) else {
+        return json!({"error": "code dir"});
+    };
+    let out = MemoryOutputPipe::new(1 << 16);
+    let mut b = WasiCtxBuilder::new();
+    b.args(&["python", "/code/main.py"]).stdout(out.clone());
+    for (host, guest) in [
+        (cx.stdlib.as_path(), STDLIB_GUEST),
+        (cx.helpers.as_path(), HELPERS_GUEST),
+        (dir.as_path(), "/code"),
+    ] {
+        if let Err(e) = b.preopened_dir(host, guest, FsPerms::ReadOnly) {
+            return json!({"error": e.to_string()});
+        }
+    }
+    let mut store = Store::new(&cx.engine, b.build_p1());
+    let budget = u64::MAX / 2;
+    let _ = store.set_fuel(budget);
+    let Ok(l) = linker(&cx.engine) else {
+        return json!({"error": "linker"});
+    };
+    let inst = match l.instantiate_async(&mut store, snap).await {
+        Ok(i) => i,
+        Err(e) => return json!({"error": format!("instantiate: {e}")}),
+    };
+    let Ok(step) = inst.get_typed_func::<i32, ()>(&mut store, "sandboxd-step") else {
+        return json!({"error": "no sandboxd-step export"});
+    };
+    let names = ["argv", "environ", "per_run", "run_file", "exit_effects"];
+    let mut phases = serde_json::Map::new();
+    for (i, name) in names.iter().enumerate() {
+        let before = store.get_fuel().unwrap_or(0);
+        let t = Instant::now();
+        if let Err(e) = step.call_async(&mut store, (i as i32) + 1).await {
+            phases.insert((*name).into(), json!({"error": format!("{e:?}")}));
+            break;
+        }
+        let used = before.saturating_sub(store.get_fuel().unwrap_or(0));
+        phases.insert(
+            (*name).into(),
+            json!({"fuel": used, "ms": t.elapsed().as_secs_f64() * 1e3}),
+        );
+    }
+    phases.insert(
+        "stdout".into(),
+        json!(String::from_utf8_lossy(&out.contents())),
+    );
+    Value::Object(phases)
+}
+
 fn code_dir(cx: &Ctx, name: &str, file: &str, code: &str) -> Res<PathBuf> {
     let d = cx.work.join(name);
     let _ = std::fs::remove_dir_all(&d);
@@ -368,6 +426,7 @@ async fn python(cx: &Ctx, upstream: &Path, custom: Option<&Path>) -> Value {
     let random_differs =
         matches!((&r1, &r2), (Ok(a), Ok(b)) if a.stdout != b.stdout && !a.stdout.is_empty());
 
+    let phases = phase_profile(cx, &snap_mod).await;
     let (up_ms, up_fuel) = timing(cx, &up, "_start", true).await;
     let (sn_ms, sn_fuel) = timing(cx, &snap_mod, "sandboxd-run", false).await;
     let speedup = if sn_ms > 0.0 { up_ms / sn_ms } else { 0.0 };
@@ -380,6 +439,7 @@ async fn python(cx: &Ctx, upstream: &Path, custom: Option<&Path>) -> Value {
         "custom_module_bytes": custom_bytes.len(), "snapshot_module_bytes": snap.len(),
         "snapshot_build_ms": snapshot_ms,
         "compat": compat,
+        "phases": phases,
         "go": all_equal && random_differs && speedup >= 5.0,
     })
 }
