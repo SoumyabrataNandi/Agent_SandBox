@@ -83,9 +83,11 @@ build_python() {
   cc=$(mk CC)
   cflags="$(mk PY_CFLAGS) $(mk PY_CPPFLAGS)"
   linkcc=$(mk LINKCC)
-  ldflags="$(mk PY_LDFLAGS) $(mk LINKFORSHARED)"
+  # PY_CORE_LDFLAGS carries the WASI-specific link flags (stack size, memory) that python.wasm uses.
+  ldflags="$(mk PY_CORE_LDFLAGS) $(mk LINKFORSHARED)"
   libs="$(mk BLDLIBRARY) $(mk LIBS) $(mk MODLIBS) $(mk SYSLIBS)"
   {
+    echo "python.wasm link (reference): $(mk LINKCC) $(mk PY_CORE_LDFLAGS) $(mk LINKFORSHARED) | $(mk LDFLAGS_NODIST) | $(mk CONFIGURE_LDFLAGS_NODIST)"
     echo "CC=$cc"
     echo "CFLAGS=$cflags"
     echo "LINKCC=$linkcc"
@@ -97,7 +99,7 @@ build_python() {
     # shellcheck disable=SC2086
     $cc $cflags -c "$HERE/python/sandboxd_python.c" -o sandboxd_python.o
     # shellcheck disable=SC2086
-    $linkcc $ldflags -mexec-model=reactor -o sandboxd-python.wasm sandboxd_python.o $libs
+    $linkcc $ldflags -mexec-model=reactor -Wl,--strip-debug -o sandboxd-python.wasm sandboxd_python.o $libs
   )
   cp "$b/sandboxd-python.wasm" "$OUT/"
   ls -l "$OUT/sandboxd-python.wasm" >&2

@@ -107,8 +107,10 @@ async fn run(
 
 /// Pre-initialise `wasm` with Wizer, using the same read-only mounts sandboxd would provide.
 async fn snapshot(cx: &Ctx, wasm: &[u8], argv0: &str) -> Res<Vec<u8>> {
+    let out = MemoryOutputPipe::new(1 << 20);
+    let err = MemoryOutputPipe::new(1 << 20);
     let mut b = WasiCtxBuilder::new();
-    b.args(&[argv0]);
+    b.args(&[argv0]).stdout(out.clone()).stderr(err.clone());
     b.preopened_dir(&cx.stdlib, STDLIB_GUEST, FsPerms::ReadOnly)
         .map_err(|e| e.to_string())?;
     b.preopened_dir(&cx.helpers, HELPERS_GUEST, FsPerms::ReadOnly)
@@ -122,7 +124,17 @@ async fn snapshot(cx: &Ctx, wasm: &[u8], argv0: &str) -> Res<Vec<u8>> {
             l.instantiate_async(store, module).await
         })
         .await
-        .map_err(|e| format!("wizer: {e:?}"))
+        .map_err(|e| {
+            format!(
+                "wizer: {e:?}
+--- init stdout ---
+{}
+--- init stderr ---
+{}",
+                String::from_utf8_lossy(&out.contents()),
+                String::from_utf8_lossy(&err.contents())
+            )
+        })
 }
 
 fn code_dir(cx: &Ctx, name: &str, file: &str, code: &str) -> Res<PathBuf> {

@@ -376,3 +376,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Pre-publication scan: no secrets in files or history (only redactor test fixtures); flagged personal details (commit author email, verbatim audit quotes, host description). User switched the repo to public (verified via anonymous API: visibility public). Actions API annotations show the spike and ci runs were "canceled by @SoumyabrataNandi" ~15–20 s after start, not by GitHub. Re-triggering the spike; asked the user to let runs finish (public repos have free Actions minutes).
 
 ---
+
+## C3-U1 spike run 4 (5501ab1)
+**Timestamp**: 2026-11-19
+**User Input**: (none)
+**AI Response**: First complete run. Both reactors built (CPython 32 MB unstripped; QuickJS). JavaScript snapshot: 5/5 programs byte-identical; console.log(1) 65k vs 3.63M fuel (55x fewer instructions), 0.49 vs 1.15 ms (2.4x). Python: wizer-initialize exited 70 in the preload step (Python error text not captured). Fixes: link with PY_CORE_LDFLAGS (WASI stack/memory flags were missing; PY_LDFLAGS was empty) + --strip-debug; spike tool captures init stdout/stderr. Re-running.
+
+---
