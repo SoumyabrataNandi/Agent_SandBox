@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: Cycle 3 — CONSTRUCTION
-- **Current Stage**: C3-U2 awaiting approval; C3-U1 spike re-running in CI
+- **Current Stage**: C3-U1 spike re-running in CI (go/no-go pending)
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -99,7 +99,7 @@
 | Unit | Status |
 |---|---|
 | C3-U1 Snapshot spike | Run 1 cancelled during the CPython build (digests recorded and pinned); re-running |
-| C3-U2 Pooling | Built & tested (combined gate) — awaiting approval |
+| C3-U2 Pooling | ✅ Approved 2026-11-19 |
 | C3-U3 Snapshot integration | Waiting for U1 go/no-go |
 | C3-U4 Sessions | Not started |
 | C3-U5 Benchmarks | Not started |

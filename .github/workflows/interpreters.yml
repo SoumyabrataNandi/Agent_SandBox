@@ -31,22 +31,34 @@ jobs:
       contents: write # only to push the report to the ci-results branch
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - id: setup_python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - name: Install pinned toolchain (rust-toolchain.toml)
+        id: toolchain
         run: rustup show active-toolchain || rustup toolchain install
-      - uses: actions/cache@v5
+      - id: assets_cache
+        uses: actions/cache@v5
         with:
           path: assets/vendor
           key: assets-${{ hashFiles('assets/manifest.toml') }}
       - name: Fetch and verify upstream guest assets
+        id: assets
         run: python scripts/fetch-assets.py
-      - uses: actions/cache@v5
+      - id: interp_cache
+        uses: actions/cache@v5
         with:
           path: ~/.cache/sandboxd-interp
           key: interp-${{ hashFiles('interpreters/sources.toml') }}-v1
-      - uses: Swatinem/rust-cache@v2
+      - id: rust_cache
+        uses: Swatinem/rust-cache@v2
+      - name: Runner resources
+        id: resources
+        if: always()
+        shell: bash
+        run: |
+          { df -h / "$HOME" 2>/dev/null; free -m; nproc; } | tee resources.log
 
       - name: Build CPython reactor
         id: py
@@ -84,6 +96,8 @@ jobs:
           PY_OUTCOME: ${{ steps.py.outcome }}
           QJS_OUTCOME: ${{ steps.qjs.outcome }}
           SPIKE_OUTCOME: ${{ steps.spike.outcome }}
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -103,6 +117,9 @@ jobs:
               "python_build": os.environ.get("PY_OUTCOME"),
               "quickjs_build": os.environ.get("QJS_OUTCOME"),
               "spike": os.environ.get("SPIKE_OUTCOME"),
+              "job_status": os.environ.get("JOB_STATUS"),
+              "steps": {k: v.get("outcome") for k, v in json.loads(os.environ.get("STEP_OUTCOMES") or "{}").items()},
+              "resources": tail("resources.log", 20),
               "digests": tail("dist/digests.txt", 50),
               "python_link": tail("dist/python-link.txt", 20),
               "python_build_log_tail": tail("python-build.log"),

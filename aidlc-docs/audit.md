@@ -362,3 +362,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Spike run 1 (6e60851): CPython build step "cancelled" during the build-python configure (not a build error); report published to ci-results with digests of wasi-sdk 33, wasmtime CLI 50.0.2 and CPython 3.15.2, now pinned in interpreters/sources.toml (TOFU from CI; to be cross-checked against upstream-published digests before C3-U3). C3-U2 pooling: PoolingMode auto/on/off + pool_slots, PoolingAllocationConfig (default 4 GiB slots; tables 6005/595 fit the 20k default), probe instantiation at warm-up, Auto fallback, slot semaphore (wait, never fail), pool gauges (Prometheus + OTLP), [runtime] pooling config. Tests: 200-instance memory-reset check, slots released, 8 runs on 2 slots, fallback/on/off, config parsing; all suites + escape (17+11) pass with pooling on by default; clippy clean. Summary: cycle-3/construction/c3-u2-pooling/design-and-summary.md. Awaiting approval.
 
 ---
+
+## C3-U2 approved
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: C3-U2 marked approved (a76ef15). Waiting for spike run 2 (a76ef15) report on ci-results.
+
+---
