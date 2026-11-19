@@ -404,3 +404,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: gc.freeze() did not change the snapshot run's fuel (11.48M; 4.5x wall), so GC is not the cost. Added a `sandboxd-step` diagnostic export (argv, environ, per-run setup, run file, exit effects) and a per-phase fuel profile in the spike report. Re-running.
 
 ---
+
+## C3-U1 spike run 8 (26ea50d): phase profile
+**Timestamp**: 2026-11-19
+**User Input**: (none)
+**AI Response**: Phases of a restored print(1) run: argv 6.7k, environ 13k, per-run setup 0.98M, run file 0.24M, exit effects 0.48M (total ~1.72M) vs 11.48M for the whole run: ~9.8M is wasi-libc exit() (C atexit handlers/destructors). sandboxd-run now ends with _Exit(status) after the Python-visible exit effects. Re-running.
+
+---

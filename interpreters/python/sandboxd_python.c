@@ -273,7 +273,13 @@ __attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
     apply_argv();
     apply_environ();
     run_private(PER_RUN, "per-run setup failed");
-    exit(finish(run_main_file()));
+    int status = finish(run_main_file());
+    /* _Exit, not exit: everything a Python exit makes observable already happened in finish()
+     * (atexit callbacks, flushed sys.stdout/sys.stderr, which write straight to their fds).
+     * wasi-libc's exit() would additionally run C-level atexit handlers and destructors, which the
+     * C3-U1 phase profile measured at ~9.8 M instructions per run, for an instance that is
+     * discarded anyway. */
+    _Exit(status);
 }
 
 /* Diagnostics for the C3-U1 spike: the phases of sandboxd-run one at a time, so their cost
