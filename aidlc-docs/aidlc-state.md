@@ -4,8 +4,8 @@
 - **Project**: sandboxd — WebAssembly sandbox for agent-generated code
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
-- **Current Phase**: Cycle 2 — COMPLETE (closed 2026-11-19)
-- **Current Stage**: Cycle 2 closed — next: cycle 3 (Phase 5 performance), starting from requirements
+- **Current Phase**: Cycle 3 — CONSTRUCTION
+- **Current Stage**: C3-U1 spike running in CI; C3-U2 pooling in progress
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -74,3 +74,33 @@
 | C2-U3 Guest integration | ✅ Approved 2026-11-19 |
 | C2-U4 OTLP exporter | ✅ Approved 2026-11-19 |
 | C2-U5 E-NET + release | ✅ Approved 2026-11-19 |
+
+---
+
+# Cycle 3 (Phase 5: performance)
+
+## Workspace State (2026-11-19)
+- **Project Type**: Brownfield (cycles 1–2: 8 crates + escape suite incl. E-NET; CI on 4 runners; last commit cce4125, clean tree)
+- **Reverse Engineering**: SKIP. Cycle 1–2 artifacts were written alongside the code and are current.
+- **Artifacts root**: `aidlc-docs/cycle-3/`
+
+## Stage Progress
+- [x] Workspace Detection — brownfield, clean tree
+- [ ] Reverse Engineering — SKIP (artifacts current)
+- [x] Requirements Analysis — approved 2026-11-19
+- [ ] User Stories — SKIP (expected; acceptance criteria in requirements)
+- [x] Workflow Planning — approved 2026-11-19
+- [x] Application Design — answered (all A) 2026-11-19; S1.5/SE1.2 amended
+- [x] Units Generation — approved 2026-11-19
+- [ ] Construction (per unit)
+- [ ] Build and Test
+
+## Cycle 3 Construction Progress
+| Unit | Status |
+|---|---|
+| C3-U1 Snapshot spike | Built; first CI run pending (results → ci-results/spike/latest.json) |
+| C3-U2 Pooling | In progress |
+| C3-U3 Snapshot integration | Waiting for U1 go/no-go |
+| C3-U4 Sessions | Not started |
+| C3-U5 Benchmarks | Not started |
+| C3-U6 Escape + docs | Not started |

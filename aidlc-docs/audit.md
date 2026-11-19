@@ -313,3 +313,45 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: C2-U5 marked approved (f0036df). Wrote cycle-2/construction/build-and-test/build-and-test-summary.md (builds, 166 tests incl. 11 E-NET, performance, AC 1–10 evidence, defects fixed, carry-forward). Cycle 2 (Phase 4 network broker + OTLP) closed; GitHub Actions run of f0036df is the CI confirmation for AC 10 (not observable from this session). Repaired the mangled Toolchain line in aidlc-state.md. Next: cycle 3 (Phase 5 performance) from requirements.
 
 ---
+
+## Cycle 3 started — workspace detection + requirements questions
+**Timestamp**: 2026-11-19
+**User Input**: "start cycle 3"
+**AI Response**: Workspace detection: brownfield, clean tree (cce4125); reverse engineering skipped (artifacts current). Researched feasibility: Wizer (now wasmtime-wizer) pre-initialization gives ~1–5 ms CPython executions in other projects but requires an exported init function, so custom CPython/QuickJS WASI builds are needed; wasmtime pooling allocator supported on all OSes (CoW mainly Linux). Generated cycle-3/inception/requirements/requirement-verification-questions.md (10 questions: scope with snapshot spike gate, snapshot production, interpreter build hosting, pooling, session model/limits/API, Docker benchmarks, targets, behaviour guarantees). Awaiting answers.
+
+---
+
+## Cycle 3 — requirements answered; requirements.md issued
+**Timestamp**: 2026-11-19
+**User Input**: "accept recommended defaults"
+**AI Response**: Q1–Q10 = A. Generated cycle-3/inception/requirements/requirements.md: FR-P1 pooling, FR-S1 snapshots (S1.0 spike gate with exit criteria; CI-built pinned interpreters published as repo releases; Wizer at start-up; per-run restore; behaviour guarantees), FR-SE1 sessions (live instance, /work, policy keys incl. new max_lifetime/max_calls, idle_ttl default 5→10 min, ownership NOT_FOUND, HTTP+MCP API, audit), FR-B1 Docker benchmarks (bench.yml, docs/BENCHMARKS.md), NFR-P1..P6, AC 1–10. Awaiting approval.
+
+---
+
+## Cycle 3 — requirements approved; workflow plan issued
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: Requirements approved. Generated cycle-3/inception/plans/execution-plan.md: change impact (high security impact: pooling/sessions/snapshots could leak state), stage decisions (App Design + light Infra Design execute; RE/User Stories skip), 6 preliminary units (U1 snapshot spike with go/no-go gate in CI, U2 pooling, U3 snapshot integration, U4 sessions, U5 benchmarks, U6 escape/threat model/docs), order U1∥U2 → U3 → U4 → U5 → U6, CI-feedback note (no gh CLI). Awaiting approval.
+
+---
+
+## Cycle 3 — workflow plan approved; application design issued
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: Verified: wasmtime-wizer 50.0.2 exists (MSRV 1.97); wasi-libc __wasilibc_reset_preopens / __wasilibc_deinitialize_environ exist; CPython WASI build links extension modules statically. Generated cycle-3/inception/application-design/application-design.md (component changes; ADR-C3-1 reactor interpreters with wizer-initialize/sandboxd-run/sandboxd-session exports and native PyRun; ADR-C3-2 snapshots at start-up via wasmtime-wizer, memory floor, hash secret; ADR-C3-3 pool sizing; ADR-C3-4 sessions: actor-owned Store, device guest loop, per-call accounting in epoch callback; ADR-C3-5 ci-results branch; ADR-C3-6 bench harness; T19–T23) and design-questions.md (8 questions; Q1 amends S1.5, Q4 amends SE1.2). Awaiting answers.
+
+---
+
+## Cycle 3 — design answered; units generated
+**Timestamp**: 2026-11-19
+**User Input**: "accept recommended defaults"
+**AI Response**: Design Q1–Q8 = A. Amended requirements S1.5 (per-snapshot-build random hash secret; random re-seeded per run) and SE1.2 (cell_<N> files; sys.exit ends the call). Generated cycle-3/inception/application-design/unit-of-work.md: C3-U1 snapshot spike (CI-only, go/no-go), U2 pooling, U3 snapshot integration (if go), U4 sessions, U5 benchmarks, U6 escape/threat model/docs; order and CI round-trip mechanics. Awaiting approval.
+
+---
+
+## Cycle 3 — units approved; C3-U1 spike built
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: Verified wasmtime-wizer 50.0.2 calls the reactor `_initialize` before the init func and strips it from the snapshot (no double-init trap); its `run(store, wasm, instantiate)` takes our own WASI store. C3-U1: interpreters/sources.toml (pins; spike mode records digests), interpreters/build.sh (pinned wasi-sdk 33 + wasmtime CLI host runner, CPython `Tools/wasm/wasi build`, relink libpython with sandboxd_python.c using the Makefile's own flags; QuickJS-ng via CMake), sandboxd_python.c (reactor: wizer-initialize with -I -S -B frozen config + preload list + patched network shims in a private namespace, then reset preopens/environ; sandboxd-run: argv, posix.environ refill, random reseed, tzset, native PyRun_SimpleFileExFlags, finalize), sandboxd_qjs.c, tools/spike-snapshot (Wizer pre-init + byte-for-byte compat vs upstream on 10 Python / 5 JS programs + random-reseed check + timing/fuel; JSON report), .github/workflows/interpreters.yml (publishes report incl. build-log tails to orphan ci-results branch). Local: builds, clippy, cargo-deny clean. Pushed to trigger CI.
+
+---

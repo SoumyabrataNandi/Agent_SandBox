@@ -1,0 +1,137 @@
+name: interpreters
+
+# Cycle 3 (ADR-C3-1/5). Builds the snapshot-capable CPython and QuickJS reactors with pinned
+# wasi-sdk (ubuntu only), snapshots them with wasmtime-wizer, compares them byte for byte with the
+# upstream interpreters and measures start-up (C3-U1 spike, AC 2).
+#
+# The report, including build-log tails on failure, is pushed to the orphan `ci-results` branch
+# (`spike/<sha>.json`, `spike/latest.json`), so it can be read with `git fetch` without the GitHub
+# UI or CLI.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "interpreters/**"
+      - "tools/spike-snapshot/**"
+      - ".github/workflows/interpreters.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write # only to push the report to the ci-results branch
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install pinned toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/cache@v5
+        with:
+          path: assets/vendor
+          key: assets-${{ hashFiles('assets/manifest.toml') }}
+      - name: Fetch and verify upstream guest assets
+        run: python scripts/fetch-assets.py
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/sandboxd-interp
+          key: interp-${{ hashFiles('interpreters/sources.toml') }}-v1
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build CPython reactor
+        id: py
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          bash interpreters/build.sh dist python 2>&1 | tee python-build.log
+      - name: Build QuickJS reactor
+        id: qjs
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          bash interpreters/build.sh dist quickjs 2>&1 | tee quickjs-build.log
+
+      - name: Snapshot, compare and measure
+        id: spike
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p upstream
+          unzip -q -o assets/vendor/python-3.15.2-wasi_sdk-33.zip -d upstream
+          cargo run --release --locked -p spike-snapshot -- --out spike-report.json \
+            --stdlib upstream/lib/python3.15 --helpers crates/sandboxd-runtime/guest \
+            --upstream-python upstream/python.wasm --custom-python dist/sandboxd-python.wasm \
+            --upstream-qjs assets/vendor/qjs-wasi.wasm --custom-qjs dist/sandboxd-qjs.wasm \
+            2>&1 | tee spike.log
+
+      - name: Publish report to the ci-results branch
+        if: always()
+        shell: bash
+        env:
+          PY_OUTCOME: ${{ steps.py.outcome }}
+          QJS_OUTCOME: ${{ steps.qjs.outcome }}
+          SPIKE_OUTCOME: ${{ steps.spike.outcome }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib
+          def tail(p, n=150):
+              try:
+                  return pathlib.Path(p).read_text(errors="replace").splitlines()[-n:]
+              except FileNotFoundError:
+                  return None
+          try:
+              rep = json.loads(pathlib.Path("spike-report.json").read_text())
+          except Exception as e:  # build or tool failure: still publish the logs
+              rep = {"error": f"no spike report: {e}", "go": False}
+          rep["ci"] = {
+              "sha": os.environ["GITHUB_SHA"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "python_build": os.environ.get("PY_OUTCOME"),
+              "quickjs_build": os.environ.get("QJS_OUTCOME"),
+              "spike": os.environ.get("SPIKE_OUTCOME"),
+              "digests": tail("dist/digests.txt", 50),
+              "python_link": tail("dist/python-link.txt", 20),
+              "python_build_log_tail": tail("python-build.log"),
+              "quickjs_build_log_tail": tail("quickjs-build.log"),
+              "spike_log_tail": tail("spike.log", 60),
+          }
+          pathlib.Path("final-report.json").write_text(json.dumps(rep, indent=2))
+          PY
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin ci-results:ci-results 2>/dev/null; then
+            git worktree add /tmp/ci-results ci-results
+          else
+            git worktree add --orphan -b ci-results /tmp/ci-results
+          fi
+          mkdir -p /tmp/ci-results/spike
+          cp final-report.json "/tmp/ci-results/spike/${GITHUB_SHA}.json"
+          cp final-report.json /tmp/ci-results/spike/latest.json
+          cd /tmp/ci-results
+          git add spike
+          git commit -m "spike report ${GITHUB_SHA}"
+          git push origin ci-results
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: interpreters-${{ github.sha }}
+          path: |
+            dist/
+            *.log
+            final-report.json
+          if-no-files-found: warn
