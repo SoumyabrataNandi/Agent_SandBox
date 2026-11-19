@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: Cycle 2 — CONSTRUCTION
-- **Current Stage**: C2-U4 OTLP exporter built & tested — awaiting approval
+- **Current Stage**: C2-U5 E-NET + release built & tested — awaiting approval
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -73,5 +73,5 @@ ustup + D:devrgo (user env vars); WSL route dropped (user request, storage); po
 | C2-U1 Policy/config/audit ext | ✅ Approved 2026-11-19 |
 | C2-U2 sandboxd-net broker | ✅ Approved 2026-11-19 |
 | C2-U3 Guest integration | ✅ Approved 2026-11-19 |
-| C2-U4 OTLP exporter | Built & tested (combined gate) — awaiting approval |
-| C2-U5 E-NET + release | Not started |
+| C2-U4 OTLP exporter | ✅ Approved 2026-11-19 |
+| C2-U5 E-NET + release | Built & tested (11 E-NET cases) — awaiting approval |

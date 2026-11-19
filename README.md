@@ -15,6 +15,7 @@ audits every capability use. Agents reach it over a CLI, an HTTP API, or as an M
 | JavaScript `console.log` | ~6 ms |
 | Warm start (cached modules) | ~0.1 s |
 | Isolation | wasmtime + WASI preopens; no sockets, no env inheritance, no host paths outside mounts |
+| Network | Off by default. Per-policy HTTP(S)/TCP allowlists through an SSRF-hardened, audited broker |
 
 ## Quick start
 ```bash
@@ -43,11 +44,14 @@ curl -H "Authorization: Bearer $TOKEN" -d '{"language":"python","code":"print(6*
 ## What runs, and what doesn't
 - ✅ Logic, string processing, JSON/CSV, `statistics`, `decimal`, `datetime`, `re`: the Python stdlib. Also modern JavaScript.
 - ❌ NumPy/pandas and other native extensions. These return `UNSUPPORTED_NATIVE_EXTENSION`; a container/microVM fallback is a planned extension point.
-- ❌ Network access (a brokered, allowlisted network is designed for a later phase), and `pip install`.
+- ✅ Network access **when a policy grants it**: `urllib`, `http.client`, `socket.create_connection` and `fetch` work unchanged, through an allowlisting broker. See [docs/NETWORK.md](docs/NETWORK.md).
+- ❌ `pip install` and non-blocking/async sockets.
 
 ## Security testing
 `tests/escape-suite` is an adversarial, release-blocking suite: traversal, symlinks, env reads,
-CPU/memory/output bombs, subprocess/socket attempts, policy widening, auth bypass and input abuse.
+CPU/memory/output bombs, subprocess/socket attempts, policy widening, auth bypass and input abuse,
+plus the **E-NET** network family (SSRF in every IP encoding, DNS-to-private, redirects, header
+injection, downgrades, proxies, quotas, slowloris). Forbidden servers must never see a connection.
 Every case plants random canaries on the host that must never appear in any output, artifact or audit
 line. It runs on Linux, macOS and Windows in CI and against every release binary.
 

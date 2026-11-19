@@ -299,3 +299,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: C2-U3 marked approved (commit 20c3ee6; push pending, GitHub unreachable from the session). C2-U4: `otel` feature (opentelemetry 0.33, OTLP/HTTP protobuf over the existing reqwest 0.13), mirrored metrics, `sandboxd.run` span without code/output/paths/principal, bounded shutdown, [telemetry] otlp_endpoint/otlp_interval validation, RunResult.net_requests, CI otel job (default build has 0 OpenTelemetry crates). Found: OTLP client needed a rustls provider (installed by Telemetry); stdlib cache could lose the empty lib-dynload dir → ensure_stdlib restores it. Node 24: FORCE_JAVASCRIPT_ACTIONS_TO_NODE24, actions/cache@v5, upload-artifact@v6, download-artifact@v7, rustsec/audit-check replaced by cargo-audit. All tests, clippy (both feature sets), fmt, cargo-deny pass. Summary: cycle-2/construction/c2-u4-otlp/design-and-summary.md. Awaiting approval.
 
 ---
+
+## C2-U4 approved; C2-U5 built
+**Timestamp**: 2026-11-19
+**User Input**: "approve"
+**AI Response**: C2-U4 marked approved (0b67631 pushed). C2-U5: E-NET escape family (11 cases, 10 in-process servers incl. 6 canary-serving forbidden destinations with hit counters; Py + JS) covering every NFR-N1 item plus raw device frames, shim tampering and concurrent isolation; THREAT_MODEL T13–T18, network trust boundary, R6 closed, R8–R10 added; docs/NETWORK.md (rules, limits, proxy guidance, APIs, error codes, audit); README and release packaging updated. Policy env keys must be uppercase (proxy policy uses HTTP(S)_PROXY). Escape suite 17 + 11, workspace tests, clippy (both feature sets), fmt, cargo-deny pass. AC 1–10 mapped in cycle-2/construction/c2-u5-enet-release/summary.md; AC 10 on CI runners pending the GitHub run. Awaiting approval.
+
+---

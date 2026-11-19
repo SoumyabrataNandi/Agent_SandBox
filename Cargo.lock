@@ -2455,13 +2455,18 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "base64",
+ "rcgen",
+ "rustls",
  "sandboxd-audit",
+ "sandboxd-net",
  "sandboxd-policy",
  "sandboxd-runtime",
  "sandboxd-server",
  "sandboxd-vfs",
+ "serde",
  "serde_json",
  "tokio",
+ "tokio-rustls",
  "tower",
  "uuid",
 ]
