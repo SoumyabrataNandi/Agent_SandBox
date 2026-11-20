@@ -1,13 +1,40 @@
 # Using sandboxd from MCP clients
 
-`sandboxd` exposes two MCP tools:
+`sandboxd` exposes these MCP tools:
 
 | Tool | What it does |
 |---|---|
-| `run_code` | Runs Python 3.15 or JavaScript (QuickJS, ES module) in the sandbox. Returns stdout, stderr, the outcome and the exit code. Files written to `/out` come back as embedded resources. Output streams as progress notifications while the run executes. |
+| `run_code` | Runs Python 3.15 or JavaScript (QuickJS, ES module) in the sandbox. Returns stdout, stderr, the outcome and the exit code. Files written to `/out` come back as embedded resources. Output streams as progress notifications while the run executes. With `session_id`, the code runs in that session instead of a fresh sandbox. |
 | `list_policies` | Lists the operator policies you can pass as `policy`, with their limits and data mounts. |
+| `session_create` | Starts a persistent session (like a notebook kernel) under a policy that enables sessions. Returns `session_id`, `expires_at` and the idle timeout. |
+| `session_close` | Ends a session. |
 
-The server's `instructions` tell the model the rules: no network, no pip/npm, standard library only, inputs under `/in`, outputs under `/out`, nothing persists between calls.
+The server's `instructions` tell the model the rules: no network, no pip/npm, standard library only, inputs under `/in`, outputs under `/out`, nothing persists between calls unless a session is used.
+
+## Sessions (cycle 3)
+A session keeps one interpreter alive across calls: Python globals and imports, JavaScript global
+declarations, and files under the session-private `/work` carry over. Each call still gets its own
+stdout/stderr, `/out` (collected, then cleared), wall-clock limit and fuel budget. JavaScript cells run
+as global scripts with top-level `await`; use `await import(...)` instead of `import` statements.
+
+A session ends when it is closed, after `idle_ttl` without a call, at `max_lifetime`, after
+`max_calls`, when a call hits the wall-clock or CPU limit, or when the guest exits. Sessions are
+in memory only (a server restart ends them) and belong to the principal that created them: anyone
+else gets `404 SESSION_NOT_FOUND`. One call runs at a time (`409 SESSION_BUSY`).
+
+Sessions are off unless a policy enables them:
+```toml
+[session]
+enabled = true
+idle_ttl = "10m"        # default
+max_lifetime = "1h"     # default
+max_calls = 1000        # default
+max_sessions = 100      # per policy; the server-wide cap is [runtime] max_sessions (default 16)
+```
+Over HTTP: `POST /v1/sessions` `{language, policy}` → `201` with `session_id`;
+`POST /v1/sessions/{id}/runs` `{code, files?, args?, limits?}` (`?stream=true` for SSE);
+`GET /v1/sessions/{id}`; `DELETE /v1/sessions/{id}`. Session calls don't take `stdin` (send a file),
+and their `limits` may only tighten `wall_clock` and `fuel`.
 
 ## Claude Code (stdio)
 ```bash
@@ -61,6 +88,8 @@ path = "D:/sandboxd/audit.jsonl"
 # pooling = "auto"     # reuse pre-reserved instance slots; "off" allocates per run
 # snapshots = "auto"   # start runs from pre-initialised interpreters (built once at start-up,
 #                      # cached); "off" uses the upstream interpreters
+# max_sessions = 16    # live sessions server-wide; each holds an interpreter (up to its policy's
+#                      # memory limit) until it ends
 
 # Optional OTLP/HTTP export of the /metrics instruments plus one `sandboxd.run` span per run.
 # Needs a build with `cargo build --release -p sandboxd --features otel`; other builds ignore it

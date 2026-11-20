@@ -92,6 +92,8 @@ pub(crate) struct RawTcpRule {
 pub(crate) struct RawSession {
     pub enabled: Option<bool>,
     pub idle_ttl: Option<Quantity>,
+    pub max_lifetime: Option<Quantity>,
+    pub max_calls: Option<u32>,
     pub max_sessions: Option<u32>,
 }
 

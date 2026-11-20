@@ -79,10 +79,10 @@ impl SnapshotMode {
 }
 
 /// A pre-initialised interpreter, ready to instantiate.
-struct Snap {
-    pre: InstancePre<RunState>,
+pub(crate) struct Snap {
+    pub(crate) pre: InstancePre<RunState>,
     /// Initial linear memory; runs whose memory limit is lower use the upstream interpreter.
-    floor: u64,
+    pub(crate) floor: u64,
 }
 
 /// How instances get their memory, tables and stacks (FR-P1, ADR-C3-3).
@@ -156,10 +156,10 @@ pub struct WarmupReport {
 
 /// Linear-memory limiter (U4 design §4).
 #[derive(Debug)]
-struct MemLimiter {
-    max: usize,
-    peak: usize,
-    denied: bool,
+pub(crate) struct MemLimiter {
+    pub(crate) max: usize,
+    pub(crate) peak: usize,
+    pub(crate) denied: bool,
 }
 
 impl ResourceLimiter for MemLimiter {
@@ -186,14 +186,14 @@ impl ResourceLimiter for MemLimiter {
     }
 }
 
-struct RunState {
-    interposer: Interposer,
-    limiter: MemLimiter,
+pub(crate) struct RunState {
+    pub(crate) interposer: Interposer,
+    pub(crate) limiter: MemLimiter,
 }
 
 /// Raised from the epoch callback when the wall-clock deadline passes.
 #[derive(Debug)]
-struct WallClockExceeded;
+pub(crate) struct WallClockExceeded;
 impl std::fmt::Display for WallClockExceeded {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("wall-clock limit exceeded")
@@ -210,25 +210,25 @@ impl Drop for Ticker {
     }
 }
 
-struct Inner {
-    engine: Engine,
-    python: InstancePre<RunState>,
-    javascript: InstancePre<RunState>,
-    py_snap: Option<Snap>,
-    js_snap: Option<Snap>,
-    stdlib: PathBuf,
-    helpers: PathBuf,
+pub(crate) struct Inner {
+    pub(crate) engine: Engine,
+    pub(crate) python: InstancePre<RunState>,
+    pub(crate) javascript: InstancePre<RunState>,
+    pub(crate) py_snap: Option<Snap>,
+    pub(crate) js_snap: Option<Snap>,
+    pub(crate) stdlib: PathBuf,
+    pub(crate) helpers: PathBuf,
     /// One permit per pool slot (pooling only): runs wait instead of failing when all are used.
-    slots: Option<(u32, Arc<tokio::sync::Semaphore>)>,
-    cfg: RuntimeConfig,
-    audit: Arc<dyn AuditSink>,
+    pub(crate) slots: Option<(u32, Arc<tokio::sync::Semaphore>)>,
+    pub(crate) cfg: RuntimeConfig,
+    pub(crate) audit: Arc<dyn AuditSink>,
     _ticker: Ticker,
 }
 
 /// Shared, cloneable handle to the engine and prepared interpreters.
 #[derive(Clone)]
 pub struct Sandbox {
-    inner: Arc<Inner>,
+    pub(crate) inner: Arc<Inner>,
 }
 
 impl std::fmt::Debug for Sandbox {
@@ -520,7 +520,7 @@ impl Sandbox {
     }
 }
 
-fn failed(
+pub(crate) fn failed(
     run_id: RunId,
     language: Language,
     policy: &str,
@@ -547,7 +547,7 @@ fn failed(
     }
 }
 
-fn end_event(r: &RunResult, principal: &str) -> AuditEvent {
+pub(crate) fn end_event(r: &RunResult, principal: &str) -> AuditEvent {
     AuditEvent::new(EventKind::RunEnd {
         outcome: r.outcome,
         exit_code: r.exit_code,
@@ -573,7 +573,7 @@ fn end_event(r: &RunResult, principal: &str) -> AuditEvent {
 }
 
 /// `/dev/sandbox/info`: the policy name and which network families it grants (nothing else).
-fn register_info(vfds: &mut VirtualFdTable, policy: &Policy) {
+pub(crate) fn register_info(vfds: &mut VirtualFdTable, policy: &Policy) {
     let net = policy.network();
     let info = serde_json::json!({
         "policy": policy.name(),
@@ -606,12 +606,12 @@ async fn probe_instantiate(engine: &Engine, m: &Module) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-fn ms(d: Duration) -> u64 {
+pub(crate) fn ms(d: Duration) -> u64 {
     u64::try_from(d.as_millis()).unwrap_or(u64::MAX)
 }
 
 /// First line only, without host paths: never leak host details through trap messages.
-fn sanitize_trap(e: &wasmtime::Error) -> String {
+pub(crate) fn sanitize_trap(e: &wasmtime::Error) -> String {
     let s = format!("{e}");
     let first = s.lines().next().unwrap_or("trap").to_string();
     first.chars().take(200).collect()
@@ -647,12 +647,8 @@ async fn run(
         r
     };
     if req.session.is_some() {
-        return reject(failed(
-            run_id,
-            lang,
-            policy.name(),
-            RunError::NotImplemented("persistent sessions"),
-            Timings::default(),
+        return reject(invalid(
+            "session calls go through Sandbox::open_session / Session::call".into(),
         ));
     }
     if req.code.len() > cfg.max_code_bytes {
@@ -856,6 +852,7 @@ async fn run(
                 policy: policy.name().to_string(),
                 deadline,
                 audit: audit.clone(),
+                session_id: None,
             },
         )
     }) {

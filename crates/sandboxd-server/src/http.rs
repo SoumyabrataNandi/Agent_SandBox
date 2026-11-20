@@ -1,10 +1,10 @@
-//! HTTP API + MCP Streamable HTTP on one axum router (U5 design §2–§4).
+//! HTTP API + MCP Streamable HTTP on one axum router (U5 design §2–§4; sessions: C3-U4).
 
 use std::{convert::Infallible, sync::Arc};
 
 use axum::{
     Json, Router,
-    extract::{Query, Request, State},
+    extract::{Path, Query, Request, State},
     http::{HeaderValue, StatusCode, header},
     middleware::{self, Next},
     response::{
@@ -18,14 +18,14 @@ use futures::{StreamExt, stream};
 use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
-use sandboxd_runtime::RunEvent;
+use sandboxd_runtime::{RunEvent, SessionEnd};
 use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::mpsc;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
-    api::{ApiError, ApiRunRequest, ApiRunResult},
+    api::{ApiError, ApiRunRequest, ApiRunResult, ApiSessionCreate, ApiSessionRun},
     auth::{Principal, TokenSet},
     mcp::SandboxMcp,
     service::{RunService, ServiceError},
@@ -55,7 +55,7 @@ impl IntoResponse for ServiceError {
             json!({ "error": ApiError { code: self.code().into(), message: self.to_string() } }),
         );
         let mut resp = (status, body).into_response();
-        if matches!(self, ServiceError::Overloaded) {
+        if matches!(self, ServiceError::Overloaded | ServiceError::SessionLimit) {
             resp.headers_mut()
                 .insert(header::RETRY_AFTER, HeaderValue::from_static("1"));
         }
@@ -93,41 +93,58 @@ struct RunQuery {
     stream: bool,
 }
 
+fn bad_body(e: axum::extract::rejection::JsonRejection) -> Response {
+    let status = e.status();
+    let code = if status == StatusCode::PAYLOAD_TOO_LARGE {
+        "PAYLOAD_TOO_LARGE"
+    } else {
+        "INVALID_REQUEST"
+    };
+    (
+        status,
+        Json(json!({ "error": { "code": code, "message": e.body_text() } })),
+    )
+        .into_response()
+}
+
 async fn run(
     State(st): State<AppState>,
     Query(q): Query<RunQuery>,
     axum::Extension(principal): axum::Extension<Principal>,
     body: Result<Json<ApiRunRequest>, axum::extract::rejection::JsonRejection>,
 ) -> Response {
-    let Json(req) = match body {
-        Ok(b) => b,
-        Err(e) => {
-            let status = e.status();
-            let code = if status == StatusCode::PAYLOAD_TOO_LARGE {
-                "PAYLOAD_TOO_LARGE"
-            } else {
-                "INVALID_REQUEST"
-            };
-            return (
-                status,
-                Json(json!({ "error": { "code": code, "message": e.body_text() } })),
-            )
-                .into_response();
-        }
+    let req = match body {
+        Ok(Json(b)) => b,
+        Err(e) => return bad_body(e),
     };
+    // `session_id` in a plain run request: the same as POST /v1/sessions/{id}/runs.
+    if req.session_id.is_some() {
+        let Some((id, _, _, call)) = req.into_session_call() else {
+            return ServiceError::SessionNotFound.into_response();
+        };
+        return session_run_response(st, principal, id, call, q.stream).await;
+    }
     if !q.stream {
         return match st.service.submit(&principal, req, None).await {
             Ok(r) => Json(ApiRunResult::from(&r)).into_response(),
             Err(e) => e.into_response(),
         };
     }
-    // SSE: run in the background, stream events, finish with `result` (or `error`).
+    let svc = st.service.clone();
+    sse(move |tx| async move { svc.submit(&principal, req, Some(tx)).await.map(|_| ()) })
+}
+
+/// SSE: run `work` in the background, stream its events, finish with `result` (or `error`).
+fn sse<F, Fut>(work: F) -> Response
+where
+    F: FnOnce(mpsc::Sender<RunEvent>) -> Fut,
+    Fut: std::future::Future<Output = Result<(), ServiceError>> + Send + 'static,
+{
     let (tx, rx) = mpsc::channel::<RunEvent>(64);
     let (done_tx, done_rx) = tokio::sync::oneshot::channel::<Result<(), ServiceError>>();
-    let svc = st.service.clone();
+    let fut = work(tx);
     tokio::spawn(async move {
-        let r = svc.submit(&principal, req, Some(tx)).await.map(|_| ());
-        let _ = done_tx.send(r);
+        let _ = done_tx.send(fut.await);
     });
     let events = tokio_stream_from(rx).map(|ev| -> Result<Event, Infallible> {
         Ok(match ev {
@@ -165,6 +182,88 @@ async fn run(
     Sse::new(events.chain(tail))
         .keep_alive(KeepAlive::default())
         .into_response()
+}
+
+async fn session_run_response(
+    st: AppState,
+    principal: Principal,
+    id: String,
+    call: ApiSessionRun,
+    stream: bool,
+) -> Response {
+    let to_api = |r: &sandboxd_runtime::RunResult, id: &str, ended: Option<SessionEnd>| {
+        let mut a = ApiRunResult::from(r);
+        a.session_id = Some(id.to_string());
+        a.session_ended = ended.map(|e| e.as_str().to_string());
+        a
+    };
+    if !stream {
+        return match st.service.session_run(&principal, &id, call, None).await {
+            Ok((r, ended)) => Json(to_api(&r, &id, ended)).into_response(),
+            Err(e) => e.into_response(),
+        };
+    }
+    let svc = st.service.clone();
+    sse(move |tx| async move {
+        svc.session_run(&principal, &id, call, Some(tx))
+            .await
+            .map(|_| ())
+    })
+}
+
+/// `POST /v1/sessions`
+async fn session_create(
+    State(st): State<AppState>,
+    axum::Extension(principal): axum::Extension<Principal>,
+    body: Result<Json<ApiSessionCreate>, axum::extract::rejection::JsonRejection>,
+) -> Response {
+    let req = match body {
+        Ok(Json(b)) => b,
+        Err(e) => return bad_body(e),
+    };
+    match st.service.create_session(&principal, req).await {
+        Ok(s) => (StatusCode::CREATED, Json(s)).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+/// `POST /v1/sessions/{id}/runs[?stream=true]`
+async fn session_runs(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    Query(q): Query<RunQuery>,
+    axum::Extension(principal): axum::Extension<Principal>,
+    body: Result<Json<ApiSessionRun>, axum::extract::rejection::JsonRejection>,
+) -> Response {
+    let call = match body {
+        Ok(Json(b)) => b,
+        Err(e) => return bad_body(e),
+    };
+    session_run_response(st, principal, id, call, q.stream).await
+}
+
+/// `GET /v1/sessions/{id}`
+async fn session_get(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    axum::Extension(principal): axum::Extension<Principal>,
+) -> Response {
+    match st.service.session_info(&principal, &id) {
+        Ok(s) => Json(s).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+/// `DELETE /v1/sessions/{id}`
+async fn session_delete(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    axum::Extension(principal): axum::Extension<Principal>,
+) -> Response {
+    match st.service.close_session(&principal, &id).await {
+        Ok(s) => Json(s).into_response(),
+        Err(e) => e.into_response(),
+    }
 }
 
 fn chunk(b: &[u8]) -> serde_json::Value {
@@ -221,6 +320,9 @@ pub fn router(state: AppState, max_request_bytes: usize) -> Router {
     };
     let api = Router::new()
         .route("/v1/runs", post(run))
+        .route("/v1/sessions", post(session_create))
+        .route("/v1/sessions/{id}", get(session_get).delete(session_delete))
+        .route("/v1/sessions/{id}/runs", post(session_runs))
         .route("/v1/policies", get(policies))
         .nest_service("/mcp", mcp_service);
     let api = if state.metrics_public {

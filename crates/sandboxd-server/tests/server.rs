@@ -297,6 +297,7 @@ async fn overloaded_returns_429() {
             max_concurrent: 1,
             queue_depth: 0,
             queue_timeout: Duration::from_millis(100),
+            ..AdmissionConfig::default()
         },
     );
     let a = app(svc.clone(), true, 1 << 20);

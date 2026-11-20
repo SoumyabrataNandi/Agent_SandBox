@@ -239,9 +239,25 @@ fn yaml_hardening() {
 // ---- Q3: phases 4/5 ----
 
 #[test]
-fn session_enabled_is_unsupported_but_valid() {
+fn sessions_are_supported_and_validated() {
     let p = toml(&format!("{HEAD}[session]\nenabled = true")).expect("valid shape");
-    assert!(p.ensure_supported().is_err());
+    assert!(p.ensure_supported().is_ok());
+    let s = &p.spec().session;
+    assert_eq!(s.idle_ttl, std::time::Duration::from_secs(600));
+    assert_eq!(s.max_lifetime, std::time::Duration::from_secs(3600));
+    assert_eq!(s.max_calls, 1000);
+    let p = toml(&format!(
+        "{HEAD}[session]\nenabled = true\nidle_ttl = \"30s\"\nmax_lifetime = \"2h\"\nmax_calls = 5"
+    ))
+    .expect("valid");
+    assert_eq!(
+        p.spec().session.max_lifetime,
+        std::time::Duration::from_secs(7200)
+    );
+    assert_eq!(p.spec().session.max_calls, 5);
+    assert!(p.explain().contains("max_calls 5"));
+    assert!(toml(&format!("{HEAD}[session]\nmax_lifetime = \"10s\"")).is_err());
+    assert!(toml(&format!("{HEAD}[session]\nmax_calls = 0")).is_err());
     assert!(
         toml(&format!("{HEAD}[network]\nmax_requests = 3"))
             .expect("valid")

@@ -16,7 +16,9 @@ use wasmtime_wasi::{FsPerms, WasiCtxBuilder, p1::WasiP1Ctx};
 use crate::{
     config::VfsConfig,
     error::{VfsError, io},
-    interposer::{Interposer, InterposerParts, MountInfo, MountKind, OutQuota},
+    interposer::{
+        CallIds, Interposer, InterposerParts, MountInfo, MountKind, OutQuota, QuotaHandle,
+    },
     paths::validate_input_name,
     stdlib::STDLIB_GUEST,
     vfd::VirtualFdTable,
@@ -61,6 +63,7 @@ pub struct RunFs {
     artifact_count: u32,
     artifact_bytes: u64,
     run_id: RunId,
+    ids: CallIds,
     policy: String,
     audit: Arc<dyn AuditSink>,
 }
@@ -162,6 +165,7 @@ impl RunFs {
             artifact_count: limits.artifact_count,
             artifact_bytes: limits.artifact_bytes.bytes(),
             run_id,
+            ids: CallIds::new(run_id),
             policy: policy.name().to_string(),
             audit,
         };
@@ -230,6 +234,121 @@ impl RunFs {
         Ok(self)
     }
 
+    /// Sessions (C3-U4): an empty, read-only `/code` that [`Self::write_code`] fills with cells.
+    pub fn with_code_dir(mut self) -> Result<Self, VfsError> {
+        if self.mounts.iter().any(|m| m.kind == MountKind::Code) {
+            return Err(VfsError::InvalidInput("code already set".into()));
+        }
+        let dir = self.run_dir.join("code");
+        mkdir_private(&dir)?;
+        self.mounts.push(MountInfo {
+            guest: sandboxd_policy::CODE_GUEST_PATH.into(),
+            host: dir,
+            kind: MountKind::Code,
+        });
+        Ok(self)
+    }
+
+    /// Sessions: write one more file into the (guest read-only) code directory.
+    pub fn write_code(&self, file_name: &str, bytes: &[u8]) -> Result<(), VfsError> {
+        validate_input_name(file_name).map_err(VfsError::InvalidInput)?;
+        if file_name.contains('/') {
+            return Err(VfsError::InvalidInput(format!(
+                "code file name {file_name:?} must not contain '/'"
+            )));
+        }
+        write_new(&self.run_dir.join("code").join(file_name), bytes)
+    }
+
+    /// Sessions: a session-private writable `/work` (live quota like `/out`, never collected).
+    pub fn with_work(mut self) -> Result<Self, VfsError> {
+        if self
+            .mounts
+            .iter()
+            .any(|m| m.guest == "/work" || m.guest.starts_with("/work/"))
+        {
+            return Err(VfsError::InvalidInput(
+                "the policy mounts a directory at /work, which sessions reserve".into(),
+            ));
+        }
+        let dir = self.run_dir.join("work");
+        mkdir_private(&dir)?;
+        self.mounts.push(MountInfo {
+            guest: "/work".into(),
+            host: dir,
+            kind: MountKind::Work,
+        });
+        Ok(self)
+    }
+
+    /// Sessions: (bytes, files) currently stored under `/work`.
+    pub fn work_usage(&self) -> (u64, u32) {
+        fn walk(d: &Path, acc: &mut (u64, u32)) {
+            let Ok(rd) = std::fs::read_dir(d) else {
+                return;
+            };
+            for e in rd.flatten() {
+                match e.file_type() {
+                    Ok(t) if t.is_dir() => walk(&e.path(), acc),
+                    Ok(t) if t.is_file() => {
+                        acc.0 += e.metadata().map(|m| m.len()).unwrap_or(0);
+                        acc.1 = acc.1.saturating_add(1);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let mut acc = (0, 0);
+        walk(&self.run_dir.join("work"), &mut acc);
+        acc
+    }
+
+    /// Sessions: add input files under `/in` (same validation as at creation; existing names are
+    /// refused). `budget` is the remaining `input_bytes` for the session.
+    pub fn add_inputs(&self, inputs: &[InputFile], budget: u64) -> Result<u64, VfsError> {
+        let in_dir = self.run_dir.join("in");
+        let mut total = 0u64;
+        for f in inputs {
+            validate_input_name(&f.name).map_err(VfsError::InvalidInput)?;
+            total = total.saturating_add(f.bytes.len() as u64);
+        }
+        if total > budget {
+            return Err(VfsError::InputsTooLarge {
+                total: ByteSize(total),
+                limit: ByteSize(budget),
+            });
+        }
+        for f in inputs {
+            let dest = in_dir.join(f.name.replace('/', std::path::MAIN_SEPARATOR_STR));
+            if dest.exists() {
+                return Err(VfsError::InvalidInput(format!(
+                    "input {:?} already exists in this session",
+                    f.name
+                )));
+            }
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent).map_err(io("create input dir", parent))?;
+            }
+            write_new(&dest, &f.bytes)?;
+        }
+        Ok(total)
+    }
+
+    /// Sessions: empty `/out` after its artifacts were collected (per-call semantics).
+    pub fn clear_outputs(&self) -> Result<(), VfsError> {
+        for e in std::fs::read_dir(&self.out_dir).map_err(io("read outputs", &self.out_dir))? {
+            let e = e.map_err(io("read outputs", &self.out_dir))?;
+            let p = e.path();
+            let meta = std::fs::symlink_metadata(&p).map_err(io("stat output", &p))?;
+            if meta.is_dir() {
+                std::fs::remove_dir_all(&p).map_err(io("clear output dir", &p))?;
+            } else {
+                std::fs::remove_file(&p).map_err(io("clear output", &p))?;
+            }
+        }
+        Ok(())
+    }
+
     /// Mount the sandboxd guest helpers (host dir from the runtime's helper cache) read-only at
     /// [`sandboxd_policy::HELPER_GUEST_PATH`]. Call before [`Self::preopen`].
     pub fn with_helpers(mut self, host_dir: &Path) -> Result<Self, VfsError> {
@@ -253,7 +372,7 @@ impl RunFs {
                 | MountKind::Inputs
                 | MountKind::Code
                 | MountKind::Helpers => FsPerms::ReadOnly,
-                MountKind::Outputs => FsPerms::ReadWrite,
+                MountKind::Outputs | MountKind::Work => FsPerms::ReadWrite,
                 MountKind::Policy => {
                     let rw = policy
                         .filesystem()
@@ -283,19 +402,24 @@ impl RunFs {
             InterposerParts {
                 quiet_probes: quiet_probes(&self.mounts),
                 mounts: self.mounts.clone(),
-                quota: OutQuota {
+                quota: QuotaHandle::new(OutQuota {
                     max_bytes: self.artifact_bytes,
                     max_files: self.artifact_count,
                     bytes: 0,
                     files: 0,
                     hit: false,
-                },
+                }),
                 vfds,
                 audit: self.audit.clone(),
-                run_id: self.run_id,
+                ids: self.ids.clone(),
                 policy: self.policy.clone(),
             },
         )
+    }
+
+    /// The ids stamped on this run's audit events (sessions switch them per call, C3-U4).
+    pub fn call_ids(&self) -> CallIds {
+        self.ids.clone()
     }
 
     /// The preopened mounts, in fd order (for diagnostics and tests).
@@ -336,15 +460,15 @@ impl RunFs {
                 }
                 Kind::Other(why) => {
                     self.audit.emit(
-                        AuditEvent::new(EventKind::FsAccess {
-                            op: FsOp::Stat,
-                            path: format!("{}/{name}", self.outputs_guest),
-                            mode: None,
-                            decision: Decision::Deny,
-                            reason: Some(format!("not collected: {why}")),
-                        })
-                        .run(self.run_id)
-                        .policy(self.policy.clone()),
+                        self.ids
+                            .stamp(AuditEvent::new(EventKind::FsAccess {
+                                op: FsOp::Stat,
+                                path: format!("{}/{name}", self.outputs_guest),
+                                mode: None,
+                                decision: Decision::Deny,
+                                reason: Some(format!("not collected: {why}")),
+                            }))
+                            .policy(self.policy.clone()),
                     );
                     c.skipped.push((name, why.into()));
                 }

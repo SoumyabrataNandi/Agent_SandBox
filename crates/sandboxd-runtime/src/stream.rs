@@ -18,6 +18,8 @@ use crate::types::RunEvent;
 struct State {
     buf: Vec<u8>,
     truncated: bool,
+    /// Where chunks are streamed; re-armed per call in sessions (C3-U4).
+    tx: Option<UnboundedSender<RunEvent>>,
 }
 
 /// Collects up to `cap` bytes, forwards each chunk as a [`RunEvent`], then fails writes.
@@ -26,17 +28,27 @@ pub(crate) struct CappedStream {
     state: Arc<Mutex<State>>,
     cap: usize,
     kind: LimitKind,
-    tx: Option<UnboundedSender<RunEvent>>,
 }
 
 impl CappedStream {
     pub(crate) fn new(cap: u64, kind: LimitKind, tx: Option<UnboundedSender<RunEvent>>) -> Self {
         Self {
-            state: Arc::default(),
+            state: Arc::new(Mutex::new(State {
+                buf: Vec::new(),
+                truncated: false,
+                tx,
+            })),
             cap: usize::try_from(cap).unwrap_or(usize::MAX),
             kind,
-            tx,
         }
+    }
+
+    /// Sessions: start a new call with an empty buffer and the call's event channel.
+    pub(crate) fn rearm(&self, tx: Option<UnboundedSender<RunEvent>>) {
+        let mut s = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        s.buf.clear();
+        s.truncated = false;
+        s.tx = tx;
     }
 
     /// (bytes, truncated)
@@ -58,7 +70,7 @@ impl CappedStream {
         let n = data.len().min(room);
         s.buf.extend_from_slice(&data[..n]);
         if n > 0
-            && let Some(tx) = &self.tx
+            && let Some(tx) = &s.tx
         {
             let chunk = Bytes::copy_from_slice(&data[..n]);
             let ev = if self.kind == LimitKind::Stdout {
@@ -70,7 +82,7 @@ impl CappedStream {
         }
         if n < data.len() {
             s.truncated = true;
-            if let Some(tx) = &self.tx {
+            if let Some(tx) = &s.tx {
                 let _ = tx.send(RunEvent::LimitHit(self.kind));
             }
             if n == 0 {

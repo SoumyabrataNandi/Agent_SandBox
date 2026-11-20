@@ -43,6 +43,9 @@ pub struct Metrics {
     pub(crate) startup_ms: Gauge<u64, AtomicU64>,
     pool_slots: Gauge,
     pool_in_use: Gauge,
+    sessions_active: Gauge,
+    session_calls: Counter,
+    sessions_ended: Family<ReasonLabel, Counter>,
     otel: crate::otel::Instruments,
 }
 
@@ -65,6 +68,24 @@ impl Default for Metrics {
             (Gauge::default(), Gauge::default(), Gauge::default());
         let startup_ms = Gauge::<u64, AtomicU64>::default();
         let (pool_slots, pool_in_use) = (Gauge::default(), Gauge::default());
+        let sessions_active = Gauge::default();
+        let session_calls = Counter::default();
+        let sessions_ended = Family::<ReasonLabel, Counter>::default();
+        registry.register(
+            "sessions_active",
+            "Live interpreter sessions",
+            sessions_active.clone(),
+        );
+        registry.register(
+            "session_calls",
+            "Calls run in sessions",
+            session_calls.clone(),
+        );
+        registry.register(
+            "sessions_ended",
+            "Sessions ended, by reason",
+            sessions_ended.clone(),
+        );
         registry.register("runs", "Completed runs", runs.clone());
         registry.register(
             "run_duration_seconds",
@@ -115,6 +136,9 @@ impl Default for Metrics {
             startup_ms,
             pool_slots,
             pool_in_use,
+            sessions_active,
+            session_calls,
+            sessions_ended,
             otel: crate::otel::Instruments::new(),
         }
     }
@@ -150,6 +174,26 @@ impl Metrics {
         self.pool_slots.set(i64::from(slots));
         self.pool_in_use.set(i64::from(used));
         self.otel.pool(slots, used);
+    }
+
+    pub(crate) fn sessions_set(&self, active: usize) {
+        let n = i64::try_from(active).unwrap_or(i64::MAX);
+        self.sessions_active.set(n);
+        self.otel.sessions(n);
+    }
+
+    pub(crate) fn session_call(&self) {
+        self.session_calls.inc();
+        self.otel.session_call();
+    }
+
+    pub(crate) fn session_ended(&self, reason: &str) {
+        self.sessions_ended
+            .get_or_create(&ReasonLabel {
+                reason: reason.into(),
+            })
+            .inc();
+        self.otel.session_ended(reason);
     }
 
     pub(crate) fn audit_healthy_set(&self, ok: bool) {

@@ -2,7 +2,9 @@
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use sandboxd_policy::{Overrides, parse_bytes, parse_duration, parse_fuel};
-use sandboxd_runtime::{InputFile, Language, RunError, RunRequest, RunResult};
+use sandboxd_runtime::{
+    CallRequest, InputFile, Language, RunError, RunRequest, RunResult, SessionOptions,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -83,6 +85,157 @@ pub struct ApiRunRequest {
     pub stdin: Option<String>,
     #[serde(default)]
     pub limits: Option<ApiLimits>,
+    /// Run in this persistent session (from `session_create`) instead of a fresh sandbox:
+    /// variables, imports and files under /work carry over between calls. `language` must match
+    /// the session's; `policy` is the session's.
+    #[serde(default)]
+    pub session_id: Option<String>,
+}
+
+fn decode_files(files: Vec<ApiFile>) -> Result<Vec<InputFile>, String> {
+    let mut out = Vec::with_capacity(files.len());
+    for f in files {
+        let bytes = match f.encoding {
+            ApiEncoding::Utf8 => f.content.into_bytes(),
+            ApiEncoding::Base64 => B64
+                .decode(f.content.as_bytes())
+                .map_err(|e| format!("file {:?}: invalid base64: {e}", f.name))?,
+        };
+        out.push(InputFile {
+            name: f.name,
+            bytes,
+        });
+    }
+    Ok(out)
+}
+
+impl ApiLimits {
+    /// Parse into policy overrides. Errors are client errors (400).
+    pub fn into_overrides(self) -> Result<Overrides, String> {
+        let d = |v: &Option<String>, f: &str| -> Result<_, String> {
+            v.as_deref()
+                .map(parse_duration)
+                .transpose()
+                .map_err(|e| format!("limits.{f}: {e}"))
+        };
+        let b = |v: &Option<String>, f: &str| -> Result<_, String> {
+            v.as_deref()
+                .map(parse_bytes)
+                .transpose()
+                .map_err(|e| format!("limits.{f}: {e}"))
+        };
+        Ok(Overrides {
+            wall_clock: d(&self.wall_clock, "wall_clock")?,
+            fuel: self
+                .fuel
+                .as_deref()
+                .map(parse_fuel)
+                .transpose()
+                .map_err(|e| format!("limits.fuel: {e}"))?,
+            memory: b(&self.memory, "memory")?,
+            stdout: b(&self.stdout, "stdout")?,
+            stderr: b(&self.stderr, "stderr")?,
+            ..Overrides::default()
+        })
+    }
+}
+
+/// Create a persistent session (`POST /v1/sessions`, MCP `session_create`).
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ApiSessionCreate {
+    pub language: ApiLanguage,
+    /// Named operator policy; it must enable sessions. Defaults to `default`.
+    #[serde(default)]
+    pub policy: Option<String>,
+    /// Files available read-only under /in for the whole session.
+    #[serde(default)]
+    pub files: Vec<ApiFile>,
+    /// Limits for the whole session (can only tighten the policy).
+    #[serde(default)]
+    pub limits: Option<ApiLimits>,
+}
+
+impl ApiSessionCreate {
+    /// Policy name, defaulting to `default`.
+    pub fn policy_name(&self) -> &str {
+        self.policy
+            .as_deref()
+            .filter(|p| !p.is_empty())
+            .unwrap_or("default")
+    }
+
+    /// Decode into runtime options.
+    pub fn into_options(self) -> Result<SessionOptions, String> {
+        Ok(SessionOptions {
+            language: self.language.into(),
+            files: decode_files(self.files)?,
+            overrides: self
+                .limits
+                .map(ApiLimits::into_overrides)
+                .transpose()?
+                .unwrap_or_default(),
+        })
+    }
+}
+
+/// One call in a session (`POST /v1/sessions/{id}/runs`).
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ApiSessionRun {
+    /// The cell. Python runs in the session's `__main__`; JavaScript runs as a global script
+    /// with top-level await (use `await import(...)`, not `import`).
+    pub code: String,
+    /// More input files under /in (new names only).
+    #[serde(default)]
+    pub files: Vec<ApiFile>,
+    /// `sys.argv[1:]` / `scriptArgs` for this call.
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Not supported in sessions; send data as a file.
+    #[serde(default)]
+    pub stdin: Option<String>,
+    /// Only `wall_clock` and `fuel` (tighter than the session's) for one call.
+    #[serde(default)]
+    pub limits: Option<ApiLimits>,
+}
+
+impl ApiSessionRun {
+    /// Decode into a runtime call.
+    pub fn into_call(self) -> Result<CallRequest, String> {
+        Ok(CallRequest {
+            code: self.code,
+            args: self.args,
+            stdin: self.stdin.map(String::into_bytes),
+            files: decode_files(self.files)?,
+            overrides: self
+                .limits
+                .map(ApiLimits::into_overrides)
+                .transpose()?
+                .unwrap_or_default(),
+        })
+    }
+}
+
+/// A session's state.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ApiSession {
+    pub session_id: String,
+    pub language: String,
+    pub policy: String,
+    /// `snapshot` or `upstream`.
+    pub interpreter: String,
+    /// `active`, `busy` or `ended`.
+    pub state: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ended_reason: Option<String>,
+    pub calls: u64,
+    pub max_calls: u32,
+    pub created_at: String,
+    /// When the session ends regardless of use (`max_lifetime`).
+    pub expires_at: String,
+    /// Ends after this many seconds without a call.
+    pub idle_timeout_s: u64,
 }
 
 impl ApiRunRequest {
@@ -96,53 +249,64 @@ impl ApiRunRequest {
 
     /// Decode into a runtime request. Errors are client errors (400).
     pub fn into_run_request(self) -> Result<RunRequest, String> {
-        let mut files = Vec::with_capacity(self.files.len());
-        for f in self.files {
-            let bytes = match f.encoding {
-                ApiEncoding::Utf8 => f.content.into_bytes(),
-                ApiEncoding::Base64 => B64
-                    .decode(f.content.as_bytes())
-                    .map_err(|e| format!("file {:?}: invalid base64: {e}", f.name))?,
-            };
-            files.push(InputFile {
-                name: f.name,
-                bytes,
-            });
-        }
-        let mut o = Overrides::default();
-        if let Some(l) = self.limits {
-            let d = |v: &Option<String>, f: &str| -> Result<_, String> {
-                v.as_deref()
-                    .map(parse_duration)
-                    .transpose()
-                    .map_err(|e| format!("limits.{f}: {e}"))
-            };
-            let b = |v: &Option<String>, f: &str| -> Result<_, String> {
-                v.as_deref()
-                    .map(parse_bytes)
-                    .transpose()
-                    .map_err(|e| format!("limits.{f}: {e}"))
-            };
-            o.wall_clock = d(&l.wall_clock, "wall_clock")?;
-            o.fuel = l
-                .fuel
-                .as_deref()
-                .map(parse_fuel)
-                .transpose()
-                .map_err(|e| format!("limits.fuel: {e}"))?;
-            o.memory = b(&l.memory, "memory")?;
-            o.stdout = b(&l.stdout, "stdout")?;
-            o.stderr = b(&l.stderr, "stderr")?;
+        if self.session_id.is_some() {
+            return Err("session calls go through the session API".into());
         }
         Ok(RunRequest {
             language: self.language.into(),
             code: self.code,
-            files,
+            files: decode_files(self.files)?,
             args: self.args,
             stdin: self.stdin.map(String::into_bytes),
-            overrides: o,
+            overrides: self
+                .limits
+                .map(ApiLimits::into_overrides)
+                .transpose()?
+                .unwrap_or_default(),
             session: None,
         })
+    }
+
+    /// `Ok(self)` for a plain run; `Err((id, language, policy, call))` for a session call.
+    #[allow(
+        clippy::result_large_err,
+        reason = "not an error: the two shapes of run_code"
+    )]
+    pub fn into_session_call_or_run(
+        mut self,
+    ) -> Result<Self, (String, ApiLanguage, Option<String>, ApiSessionRun)> {
+        match self.session_id.take() {
+            None => Ok(self),
+            Some(id) => Err((
+                id,
+                self.language,
+                self.policy,
+                ApiSessionRun {
+                    code: self.code,
+                    files: self.files,
+                    args: self.args,
+                    stdin: self.stdin,
+                    limits: self.limits,
+                },
+            )),
+        }
+    }
+
+    /// Split a `run_code` request that has a `session_id` into (id, language, policy, call).
+    pub fn into_session_call(self) -> Option<(String, ApiLanguage, Option<String>, ApiSessionRun)> {
+        let id = self.session_id?;
+        Some((
+            id,
+            self.language,
+            self.policy,
+            ApiSessionRun {
+                code: self.code,
+                files: self.files,
+                args: self.args,
+                stdin: self.stdin,
+                limits: self.limits,
+            },
+        ))
     }
 }
 
@@ -195,6 +359,12 @@ pub struct ApiRunResult {
     pub fuel_used: u64,
     pub peak_memory: u64,
     pub timings: ApiTimings,
+    /// Set for session calls.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    /// Set when this call ended its session (`limit`, `exited`, `max_calls`, ...).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_ended: Option<String>,
 }
 
 fn text_and_b64(b: &[u8]) -> (String, Option<String>) {
@@ -256,6 +426,8 @@ impl From<&RunResult> for ApiRunResult {
                 collect_ms: r.timings.collect_ms,
                 total_ms: r.timings.total_ms,
             },
+            session_id: None,
+            session_ended: None,
         }
     }
 }

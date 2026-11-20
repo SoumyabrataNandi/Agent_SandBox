@@ -414,6 +414,7 @@ fn world() -> &'static NetWorld {
                         max_concurrent: 8,
                         queue_depth: 64,
                         queue_timeout: Duration::from_secs(120),
+                        max_sessions: 16,
                     },
                 );
                 (p, service, audit)
@@ -448,6 +449,7 @@ async fn run(policy: &str, lang: ApiLanguage, code: &str) -> RunResult {
                 args: vec![],
                 stdin: None,
                 limits: None,
+                session_id: None,
             },
             None,
         )

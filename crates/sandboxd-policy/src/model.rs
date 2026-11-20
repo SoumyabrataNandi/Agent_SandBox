@@ -80,6 +80,8 @@ mod range {
         (Duration::from_millis(100), Duration::from_secs(600));
     pub const IDLE_TTL: (Duration, Duration) =
         (Duration::from_secs(1), Duration::from_secs(86_400));
+    pub const MAX_LIFETIME: (Duration, Duration) =
+        (Duration::from_secs(60), Duration::from_secs(86_400));
 }
 
 /// Read-only or read-write.
@@ -195,18 +197,26 @@ impl NetworkPolicy {
     }
 }
 
-/// Session section (validated now, enforced in Phase 5).
+/// Session section (cycle 3, C3-U4: persistent interpreter sessions).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionPolicy {
     pub enabled: bool,
+    /// End a session after this long without a call.
     pub idle_ttl: Duration,
+    /// End a session this long after it was created.
+    pub max_lifetime: Duration,
+    /// End a session after this many calls.
+    pub max_calls: u32,
+    /// Concurrent sessions using this policy.
     pub max_sessions: u32,
 }
 impl Default for SessionPolicy {
     fn default() -> Self {
         Self {
             enabled: false,
-            idle_ttl: Duration::from_secs(300),
+            idle_ttl: Duration::from_secs(600),
+            max_lifetime: Duration::from_secs(3600),
+            max_calls: 1000,
             max_sessions: 100,
         }
     }
@@ -414,15 +424,7 @@ impl Policy {
     /// Refuse policies that grant capabilities this version can't enforce (Q3 = A).
     /// `PolicyDir::load` calls this; `policy check` reports it alongside validation.
     pub fn ensure_supported(&self) -> Result<(), PolicyErrors> {
-        let mut errs = Vec::new();
-        if self.spec.session.enabled {
-            errs.push(PolicyError::Unsupported {
-                origin: self.origin.clone(),
-                feature:
-                    "session.enabled = true requires persistent sessions (not in this version)"
-                        .into(),
-            });
-        }
+        let errs: Vec<PolicyError> = Vec::new();
         if errs.is_empty() {
             Ok(())
         } else {
@@ -578,9 +580,15 @@ impl Policy {
             o,
             "\nsession   {}",
             if s.session.enabled {
-                "enabled"
+                format!(
+                    "enabled (idle_ttl {}, max_lifetime {}, max_calls {}, max_sessions {})",
+                    fmt_duration(s.session.idle_ttl),
+                    fmt_duration(s.session.max_lifetime),
+                    s.session.max_calls,
+                    s.session.max_sessions
+                )
             } else {
-                "disabled"
+                "disabled".to_string()
             }
         );
         let _ = writeln!(o, "audit     log_code = {}", s.audit.log_code);
@@ -636,7 +644,10 @@ impl Policy {
             ));
         }
         if s.session.enabled {
-            w.push("sessions require Phase 5 and are refused by this version".into());
+            w.push(format!(
+                "sessions keep an interpreter (up to limits.memory = {}) alive per session; the server also caps sessions with [runtime] max_sessions",
+                s.limits.memory
+            ));
         }
         w
     }
@@ -1125,7 +1136,7 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
         network.tcp.push(TcpRule { host, port: r.port });
     }
 
-    // session (validated now, refused by ensure_supported until Phase 5)
+    // session (cycle 3, C3-U4)
     let rs = raw.session.unwrap_or_default();
     let sd = SessionPolicy::default();
     let session = SessionPolicy {
@@ -1136,6 +1147,16 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
             sd.idle_ttl,
             range::IDLE_TTL,
         ),
+        max_lifetime: v.duration(
+            "session.max_lifetime",
+            rs.max_lifetime.as_ref(),
+            sd.max_lifetime,
+            range::MAX_LIFETIME,
+        ),
+        max_calls: rs
+            .max_calls
+            .map(|n| v.ranged("session.max_calls", n, (1, 100_000), |n| n.to_string()))
+            .unwrap_or(sd.max_calls),
         max_sessions: rs
             .max_sessions
             .map(|n| v.ranged("session.max_sessions", n, (1, 10_000), |n| n.to_string()))

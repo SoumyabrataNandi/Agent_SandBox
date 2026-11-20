@@ -35,6 +35,9 @@ pub enum MountKind {
     Policy,
     /// The submitted program (`/code`, read-only).
     Code,
+    /// Session-private writable directory (`/work`, cycle 3 C3-U4): live quota like `/out`, but
+    /// not collected.
+    Work,
     /// sandboxd guest helpers (`/usr/local/lib/sandboxd`, read-only): reads are summarized.
     Helpers,
 }
@@ -63,6 +66,63 @@ pub struct OutQuota {
     pub hit: bool,
 }
 
+/// Shared handle to the live quota, so a session can start each call with a fresh one (C3-U4)
+/// while the guest (and with it the interposer) keeps running.
+#[derive(Debug, Clone)]
+pub struct QuotaHandle(Arc<std::sync::Mutex<OutQuota>>);
+
+impl QuotaHandle {
+    pub(crate) fn new(q: OutQuota) -> Self {
+        Self(Arc::new(std::sync::Mutex::new(q)))
+    }
+    fn lock(&self) -> std::sync::MutexGuard<'_, OutQuota> {
+        self.0.lock().unwrap_or_else(|p| p.into_inner())
+    }
+    /// Current counters.
+    pub fn get(&self) -> OutQuota {
+        *self.lock()
+    }
+    /// Zero the counters (limits unchanged).
+    pub fn reset(&self) {
+        self.reset_to(0, 0);
+    }
+    /// Start counting from `bytes`/`files` already stored (a session's `/work`), limits unchanged.
+    pub fn reset_to(&self, bytes: u64, files: u32) {
+        let mut q = self.lock();
+        q.bytes = bytes;
+        q.files = files;
+        q.hit = false;
+    }
+}
+
+/// The run (and session) id stamped on audit events. Sessions (C3-U4) switch it per call.
+#[derive(Debug, Clone)]
+pub struct CallIds(Arc<std::sync::Mutex<(RunId, Option<String>)>>);
+
+impl CallIds {
+    /// Ids for a one-shot run.
+    pub fn new(run_id: RunId) -> Self {
+        Self(Arc::new(std::sync::Mutex::new((run_id, None))))
+    }
+    /// Attribute what follows to `run_id` (and `session_id`).
+    pub fn set(&self, run_id: RunId, session_id: Option<String>) {
+        *self.0.lock().unwrap_or_else(|p| p.into_inner()) = (run_id, session_id);
+    }
+    /// The current run id.
+    pub fn run_id(&self) -> RunId {
+        self.0.lock().unwrap_or_else(|p| p.into_inner()).0
+    }
+    /// Add the current ids to `ev`.
+    pub fn stamp(&self, ev: AuditEvent) -> AuditEvent {
+        let g = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        let ev = ev.run(g.0);
+        match &g.1 {
+            Some(s) => ev.session(s.clone()),
+            None => ev,
+        }
+    }
+}
+
 /// What the interposer observed, for the runtime's result and `run.end`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InterposerReport {
@@ -79,10 +139,10 @@ pub struct Interposer {
     inner: WasiP1Ctx,
     mounts: Vec<MountInfo>,
     fds: HashMap<u32, FdEntry>,
-    quota: OutQuota,
+    quota: QuotaHandle,
     vfds: VirtualFdTable,
     audit: Arc<dyn AuditSink>,
-    run_id: RunId,
+    ids: CallIds,
     policy: String,
     stdlib_reads: u64,
     helper_reads: u64,
@@ -96,7 +156,7 @@ impl std::fmt::Debug for Interposer {
         f.debug_struct("Interposer")
             .field("mounts", &self.mounts)
             .field("tracked_fds", &self.fds.len())
-            .field("quota", &self.quota)
+            .field("quota", &self.quota.get())
             .finish_non_exhaustive()
     }
 }
@@ -108,10 +168,10 @@ pub const FIRST_PREOPEN_FD: u32 = 3;
 pub(crate) struct InterposerParts {
     pub quiet_probes: Vec<String>,
     pub mounts: Vec<MountInfo>,
-    pub quota: OutQuota,
+    pub quota: QuotaHandle,
     pub vfds: VirtualFdTable,
     pub audit: Arc<dyn AuditSink>,
-    pub run_id: RunId,
+    pub ids: CallIds,
     pub policy: String,
 }
 
@@ -186,7 +246,7 @@ impl Interposer {
             quota: parts.quota,
             vfds: parts.vfds,
             audit: parts.audit,
-            run_id: parts.run_id,
+            ids: parts.ids,
             policy: parts.policy,
             stdlib_reads: 0,
             helper_reads: 0,
@@ -236,12 +296,17 @@ impl Interposer {
             );
         }
         InterposerReport {
-            limit_hit: self.quota.hit.then_some(LimitKind::Artifacts),
+            limit_hit: self.quota.get().hit.then_some(LimitKind::Artifacts),
             stdlib_reads: std::mem::take(&mut self.stdlib_reads),
             quiet_denials: std::mem::take(&mut self.quiet_denials),
-            out_bytes_written: self.quota.bytes,
-            out_files_created: self.quota.files,
+            out_bytes_written: self.quota.get().bytes,
+            out_files_created: self.quota.get().files,
         }
+    }
+
+    /// The live quota, shared (sessions reset it per call).
+    pub fn quota_handle(&self) -> QuotaHandle {
+        self.quota.clone()
     }
 
     /// The wrapped wasmtime-wasi context.
@@ -258,15 +323,15 @@ impl Interposer {
         reason: Option<String>,
     ) {
         self.audit.emit(
-            AuditEvent::new(EventKind::FsAccess {
-                op,
-                path,
-                mode,
-                decision,
-                reason,
-            })
-            .run(self.run_id)
-            .policy(self.policy.clone()),
+            self.ids
+                .stamp(AuditEvent::new(EventKind::FsAccess {
+                    op,
+                    path,
+                    mode,
+                    decision,
+                    reason,
+                }))
+                .policy(self.policy.clone()),
         );
     }
 
@@ -371,14 +436,18 @@ impl Interposer {
     }
 
     fn is_out_fd(&self, fd: types::Fd) -> bool {
-        self.fds
-            .get(&u32::from(fd))
-            .is_some_and(|e| self.mounts[e.mount].kind == MountKind::Outputs)
+        self.fds.get(&u32::from(fd)).is_some_and(|e| {
+            matches!(
+                self.mounts[e.mount].kind,
+                MountKind::Outputs | MountKind::Work
+            )
+        })
     }
 
     /// V7: reserve `n` more bytes under `/out`, or fail with ENOSPC.
     fn reserve_out_bytes(&mut self, n: u64) -> Result<(), types::Error> {
-        if self.quota.bytes.saturating_add(n) > self.quota.max_bytes {
+        let q = self.quota.get();
+        if q.bytes.saturating_add(n) > q.max_bytes {
             self.quota_hit("bytes");
             return Err(Errno::Nospc.into());
         }
@@ -386,24 +455,22 @@ impl Interposer {
     }
 
     fn quota_hit(&mut self, what: &str) {
-        if !self.quota.hit {
-            self.quota.hit = true;
+        let q = self.quota.get();
+        if !q.hit {
+            self.quota.lock().hit = true;
             let (limit, observed) = if what == "files" {
-                (
-                    u64::from(self.quota.max_files),
-                    u64::from(self.quota.files) + 1,
-                )
+                (u64::from(q.max_files), u64::from(q.files) + 1)
             } else {
-                (self.quota.max_bytes, self.quota.bytes)
+                (q.max_bytes, q.bytes)
             };
             self.audit.emit(
-                AuditEvent::new(EventKind::LimitHit {
-                    kind: LimitKind::Artifacts,
-                    limit,
-                    observed,
-                })
-                .run(self.run_id)
-                .policy(self.policy.clone()),
+                self.ids
+                    .stamp(AuditEvent::new(EventKind::LimitHit {
+                        kind: LimitKind::Artifacts,
+                        limit,
+                        observed,
+                    }))
+                    .policy(self.policy.clone()),
             );
         }
     }
@@ -610,7 +677,7 @@ impl WasiSnapshotPreview1 for Interposer {
             self.reserve_out_bytes(growth)?;
             let r = self.inner.fd_filestat_set_size(m, fd, size).await;
             if r.is_ok() {
-                self.quota.bytes += growth;
+                self.quota.lock().bytes += growth;
             }
             return r;
         }
@@ -690,7 +757,7 @@ impl WasiSnapshotPreview1 for Interposer {
             self.reserve_out_bytes(want)?;
             let r = self.inner.fd_write(m, fd, ciovs).await;
             if let Ok(w) = r {
-                self.quota.bytes += u64::from(w);
+                self.quota.lock().bytes += u64::from(w);
             }
             return r;
         }
@@ -709,7 +776,7 @@ impl WasiSnapshotPreview1 for Interposer {
             self.reserve_out_bytes(want)?;
             let r = self.inner.fd_pwrite(m, fd, ciovs, o).await;
             if let Ok(w) = r {
-                self.quota.bytes += u64::from(w);
+                self.quota.lock().bytes += u64::from(w);
             }
             return r;
         }
@@ -862,7 +929,10 @@ impl WasiSnapshotPreview1 for Interposer {
         let src = self.check(FsOp::Link, m, sfd, sp, None)?;
         let dst = self.check(FsOp::Link, m, tfd, tp, None)?;
         if let Some(d) = &dst
-            && self.mounts[d.mount].kind == MountKind::Outputs
+            && matches!(
+                self.mounts[d.mount].kind,
+                MountKind::Outputs | MountKind::Work
+            )
         {
             // A hard link into /out would let collection read a file from elsewhere.
             self.emit(
@@ -926,11 +996,15 @@ impl WasiSnapshotPreview1 for Interposer {
         }
         let mut creating = false;
         if let Some(chk) = &c
-            && self.mounts[chk.mount].kind == MountKind::Outputs
+            && matches!(
+                self.mounts[chk.mount].kind,
+                MountKind::Outputs | MountKind::Work
+            )
             && of.contains(types::Oflags::CREAT)
             && !self.host_exists(chk)
         {
-            if self.quota.files >= self.quota.max_files {
+            let q = self.quota.get();
+            if q.files >= q.max_files {
                 self.quota_hit("files");
                 self.emit(
                     FsOp::Open,
@@ -947,7 +1021,7 @@ impl WasiSnapshotPreview1 for Interposer {
         self.record(FsOp::Open, &c, Some(mode), &r);
         if let (Ok(new_fd), Some(chk)) = (&r, c) {
             if creating {
-                self.quota.files += 1;
+                self.quota.lock().files += 1;
             }
             self.fds.insert(
                 u32::from(*new_fd),

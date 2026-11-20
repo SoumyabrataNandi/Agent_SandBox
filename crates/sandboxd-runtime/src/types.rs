@@ -40,7 +40,7 @@ impl fmt::Display for Language {
     }
 }
 
-/// Reserved for Phase 5 persistent sessions.
+/// A persistent session id (`ses_<uuid>`, cycle 3 C3-U4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SessionId(pub String);
 
@@ -54,7 +54,7 @@ pub struct RunRequest {
     pub stdin: Option<Vec<u8>>,
     /// Limit-only overrides; can only tighten the policy.
     pub overrides: Overrides,
-    /// Phase 5; any value → `NotImplemented`.
+    /// Must be `None`: session calls use [`crate::Session::call`].
     pub session: Option<SessionId>,
 }
 

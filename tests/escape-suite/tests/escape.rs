@@ -73,7 +73,7 @@ fn world() -> &'static World {
             let cfg = RuntimeConfig { vfs: VfsConfig { cache_dir: shared, work_dir: work.clone() }, ..RuntimeConfig::default() };
             let (sandbox, _) = rt.block_on(Sandbox::new(cfg, audit.clone())).expect("sandbox");
             let dir = PolicyDir::load(&policies, &LoadOptions::default()).expect("policies");
-            let admission = AdmissionConfig { max_concurrent: 8, queue_depth: 64, queue_timeout: Duration::from_secs(60) };
+            let admission = AdmissionConfig { max_concurrent: 8, queue_depth: 64, queue_timeout: Duration::from_secs(60), max_sessions: 16 };
             let service = RunService::new(sandbox, dir, audit.clone(), admission);
             World { service, audit, canary, root, data, work }
         })
@@ -91,6 +91,7 @@ fn req(lang: ApiLanguage, code: &str) -> ApiRunRequest {
         args: vec![],
         stdin: None,
         limits: None,
+        session_id: None,
     }
 }
 

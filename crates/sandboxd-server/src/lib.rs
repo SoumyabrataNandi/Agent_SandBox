@@ -18,6 +18,7 @@ pub mod mcp;
 mod metrics;
 pub mod otel;
 pub mod service;
+mod sessions;
 
 pub use auth::{Principal, TokenSet, generate_token, hash_token};
 pub use config::{AuditDest, NetworkConfig, ServerConfig};

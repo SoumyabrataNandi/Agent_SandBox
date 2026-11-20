@@ -1,4 +1,4 @@
-//! MCP server: `run_code` and `list_policies` (U5 design §3).
+//! MCP server: `run_code`, `list_policies` and sessions (U5 design §3; C3-U4).
 
 use std::time::Instant;
 
@@ -13,13 +13,15 @@ use rmcp::{
     },
     tool, tool_handler, tool_router,
 };
-use sandboxd_runtime::{RunEvent, RunResult};
+use sandboxd_runtime::{Language, RunEvent, RunResult, SessionEnd};
+use schemars::JsonSchema;
+use serde::Deserialize;
 use tokio::sync::mpsc;
 
 use crate::{
-    api::{ApiRunRequest, ApiRunResult},
+    api::{ApiLanguage, ApiRunRequest, ApiRunResult, ApiSessionCreate, ApiSessionRun},
     auth::Principal,
-    service::RunService,
+    service::{RunService, ServiceError},
 };
 
 /// Shown to the model when it connects.
@@ -28,7 +30,9 @@ Use `run_code` for calculations, data processing, parsing and transforming text/
 The sandbox has NO network access, NO package installation (pip/npm), and NO native extensions: \
 numpy, pandas, scipy and similar are unavailable, so use the Python standard library (csv, json, statistics, \
 decimal, datetime, re, itertools, collections) or plain JavaScript. Pass data as `files` (readable under /in); \
-write result files to /out (they are returned as artifacts). Each run is fresh: nothing persists between calls. \
+write result files to /out (they are returned as artifacts). Each run is fresh: nothing persists between calls, \
+unless you create a session with `session_create` (if the policy allows it) and pass its `session_id` to `run_code`: \
+then variables, imports and files under /work carry over, like notebook cells. Close it with `session_close` when done. \
 Limits (time, memory, output) come from the selected policy; see `list_policies`.";
 
 /// The MCP service. One instance per session; all share the [`RunService`].
@@ -70,10 +74,7 @@ impl SandboxMcp {
         peer: Peer<RoleServer>,
         extensions: Extensions,
     ) -> Result<CallToolResult, ErrorData> {
-        let principal = extensions
-            .get::<axum::http::request::Parts>()
-            .and_then(|p| p.extensions.get::<Principal>().cloned())
-            .unwrap_or_else(|| Principal::local(self.transport));
+        let principal = self.principal(&extensions);
 
         // Stream output as progress notifications when the client asked for progress.
         let (events, forward) = match meta.get_progress_token() {
@@ -105,14 +106,112 @@ impl SandboxMcp {
             None => (None, None),
         };
 
-        let outcome = self.service.submit(&principal, req, events).await;
+        let outcome = match req.into_session_call_or_run() {
+            Ok(req) => self
+                .service
+                .submit(&principal, req, events)
+                .await
+                .map(|r| (r, None)),
+            Err((id, language, policy, call)) => self
+                .session_call(&principal, &id, language, policy, call, events)
+                .await
+                .map(|(r, ended)| (r, Some((id, ended)))),
+        };
         if let Some(t) = forward {
             let _ = t.await;
         }
         Ok(match outcome {
-            Ok(r) => tool_result(&r),
+            Ok((r, session)) => tool_result(&r, session),
             Err(e) => CallToolResult::error(vec![ContentBlock::text(format!("{}: {e}", e.code()))]),
         })
+    }
+
+    async fn session_call(
+        &self,
+        principal: &Principal,
+        id: &str,
+        language: ApiLanguage,
+        policy: Option<String>,
+        call: ApiSessionRun,
+        events: Option<mpsc::Sender<RunEvent>>,
+    ) -> Result<(RunResult, Option<SessionEnd>), ServiceError> {
+        let info = self.service.session_info(principal, id)?;
+        if Language::from(language).as_str() != info.language {
+            return Err(ServiceError::InvalidRequest(format!(
+                "session {id} runs {}, not {}",
+                info.language,
+                Language::from(language).as_str()
+            )));
+        }
+        if let Some(p) = policy.filter(|p| !p.is_empty() && *p != info.policy) {
+            return Err(ServiceError::InvalidRequest(format!(
+                "session {id} uses policy {:?}, not {p:?}",
+                info.policy
+            )));
+        }
+        self.service.session_run(principal, id, call, events).await
+    }
+
+    #[tool(
+        name = "session_create",
+        description = "Start a persistent sandbox session (like a notebook kernel) for Python or JavaScript. Pass the returned session_id to run_code: variables, functions, imports and files under /work persist between calls; stdout, /out and the time limit are per call. The policy must enable sessions. Sessions end after idle_timeout_s without a call, at expires_at, on a time/CPU limit, or with session_close."
+    )]
+    async fn session_create(
+        &self,
+        Parameters(req): Parameters<ApiSessionCreate>,
+        extensions: Extensions,
+    ) -> Result<CallToolResult, ErrorData> {
+        let principal = self.principal(&extensions);
+        Ok(match self.service.create_session(&principal, req).await {
+            Ok(s) => {
+                let text = format!(
+                    "session {} created ({}, policy {}). Pass session_id to run_code. Ends after {} s idle, at {} at the latest, or after {} calls.",
+                    s.session_id, s.language, s.policy, s.idle_timeout_s, s.expires_at, s.max_calls
+                );
+                let mut r = CallToolResult::success(vec![ContentBlock::text(text)]);
+                r.structured_content = serde_json::to_value(&s).ok();
+                r
+            }
+            Err(e) => CallToolResult::error(vec![ContentBlock::text(format!("{}: {e}", e.code()))]),
+        })
+    }
+
+    #[tool(
+        name = "session_close",
+        description = "End a session created with session_create and free its resources."
+    )]
+    async fn session_close(
+        &self,
+        Parameters(req): Parameters<SessionRef>,
+        extensions: Extensions,
+    ) -> Result<CallToolResult, ErrorData> {
+        let principal = self.principal(&extensions);
+        Ok(
+            match self
+                .service
+                .close_session(&principal, &req.session_id)
+                .await
+            {
+                Ok(s) => {
+                    let mut r = CallToolResult::success(vec![ContentBlock::text(format!(
+                        "session {} closed after {} calls",
+                        s.session_id, s.calls
+                    ))]);
+                    r.structured_content = serde_json::to_value(&s).ok();
+                    r
+                }
+                Err(e) => {
+                    CallToolResult::error(vec![ContentBlock::text(format!("{}: {e}", e.code()))])
+                }
+            },
+        )
+    }
+
+    fn principal(&self, extensions: &Extensions) -> Principal {
+        extensions
+            .get::<axum::http::request::Parts>()
+            .and_then(|p| p.extensions.get::<Principal>().cloned())
+            .unwrap_or_else(|| Principal::local(self.transport))
     }
 
     #[tool(
@@ -142,9 +241,17 @@ impl SandboxMcp {
     }
 }
 
+/// `session_close` parameters.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SessionRef {
+    /// The id returned by session_create.
+    pub session_id: String,
+}
+
 /// Build the MCP tool result (Q2: artifacts as embedded resources).
-fn tool_result(r: &RunResult) -> CallToolResult {
-    let api = ApiRunResult::from(r);
+fn tool_result(r: &RunResult, session: Option<(String, Option<SessionEnd>)>) -> CallToolResult {
+    let mut api = ApiRunResult::from(r);
     let mut summary = format!("outcome: {}", api.outcome);
     if let Some(c) = api.exit_code {
         summary.push_str(&format!(", exit code {c}"));
@@ -159,6 +266,15 @@ fn tool_result(r: &RunResult) -> CallToolResult {
         "\nduration: {} ms, run id {}",
         api.timings.total_ms, api.run_id
     ));
+    if let Some((id, ended)) = session {
+        if let Some(reason) = ended {
+            summary.push_str(&format!(
+                "\nsession {id} has ended ({reason}); create a new one to continue"
+            ));
+        }
+        api.session_id = Some(id);
+        api.session_ended = ended.map(|e| e.as_str().to_string());
+    }
     let mut content = vec![ContentBlock::text(summary)];
     if !api.stdout.is_empty() {
         let t = if api.stdout_truncated {

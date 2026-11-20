@@ -283,9 +283,10 @@ async fn invalid_requests_and_sessions() {
     let mut req = RunRequest::new(Language::Python, "print(1)");
     req.session = Some(SessionId("s".into()));
     let r = sandbox().0.execute(req, pol(""), "test", None).await;
-    assert_eq!(
-        r.error,
-        Some(RunError::NotImplemented("persistent sessions"))
+    assert!(
+        matches!(&r.error, Some(RunError::InvalidRequest(m)) if m.contains("open_session")),
+        "{:?}",
+        r.error
     );
     let big = "#".repeat(2 << 20);
     assert!(matches!(

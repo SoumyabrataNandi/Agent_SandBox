@@ -22,21 +22,21 @@ wasi = "wasm32-wasip1"
 license = "MIT"
 
 # Snapshot-capable builds of the same interpreter versions (cycle 3, C3-U3): WASI reactors with
-# sandboxd entry points (wizer-initialize / sandboxd-run), built by .github/workflows/interpreters.yml
+# sandboxd entry points (wizer-initialize / sandboxd-run / sandboxd-session), built by .github/workflows/interpreters.yml
 # from the pinned sources in interpreters/sources.toml and published only when the snapshot spike
 # passes. The release also carries SHA256SUMS and build-provenance attestations.
 [python_snapshot]
 version = "3.15.2 (sandboxd reactor)"
-url = "https://github.com/SoumyabrataNandi/Agent_SandBox/releases/download/interp-ef9ab1d314d38dc0/sandboxd-python.wasm"
+url = "https://github.com/SoumyabrataNandi/Agent_SandBox/releases/download/interp-0bb2fe9cb3da6365/sandboxd-python.wasm"
 file = "sandboxd-python.wasm"
-sha256 = "043c909e2a01697ad5f0c8cd3078c40aafb03bf77673f13d7775f5fd79ef7bd2"
+sha256 = "a63e834d3c3a9124cdaba2c943ee25c57a69dc30d6c2abc80fdf679e6be483e3"
 wasi = "wasm32-wasip1"
 license = "PSF-2.0"
 
 [javascript_snapshot]
 version = "quickjs-ng 0.18.0 (sandboxd reactor)"
-url = "https://github.com/SoumyabrataNandi/Agent_SandBox/releases/download/interp-ef9ab1d314d38dc0/sandboxd-qjs.wasm"
+url = "https://github.com/SoumyabrataNandi/Agent_SandBox/releases/download/interp-0bb2fe9cb3da6365/sandboxd-qjs.wasm"
 file = "sandboxd-qjs.wasm"
-sha256 = "67460a3c940136514b7295a2320a1fb9713f219232a50eaf4539bbbb07cfb9d7"
+sha256 = "2b216b9daaa3a285b7c99d5e4800838c840767a560dfa2c74c4922ac39d34d41"
 wasi = "wasm32-wasip1"
 license = "MIT"

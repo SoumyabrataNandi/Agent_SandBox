@@ -203,6 +203,32 @@ impl Instruments {
         let _ = ok;
     }
 
+    pub(crate) fn sessions(&self, active: i64) {
+        #[cfg(feature = "otel")]
+        if let Some(i) = &self.inner {
+            i.sessions_active.record(active, &[]);
+        }
+        #[cfg(not(feature = "otel"))]
+        let _ = active;
+    }
+
+    pub(crate) fn session_call(&self) {
+        #[cfg(feature = "otel")]
+        if let Some(i) = &self.inner {
+            i.session_calls.add(1, &[]);
+        }
+    }
+
+    pub(crate) fn session_ended(&self, reason: &str) {
+        #[cfg(feature = "otel")]
+        if let Some(i) = &self.inner {
+            i.sessions_ended
+                .add(1, &[KeyValue::new("reason", reason.to_string())]);
+        }
+        #[cfg(not(feature = "otel"))]
+        let _ = reason;
+    }
+
     pub(crate) fn pool(&self, slots: u32, in_use: u32) {
         #[cfg(feature = "otel")]
         if let Some(i) = &self.inner {
@@ -366,6 +392,9 @@ mod imp {
         pub(super) startup: Gauge<u64>,
         pub(super) pool_slots: Gauge<u64>,
         pub(super) pool_in_use: Gauge<u64>,
+        pub(super) sessions_active: Gauge<i64>,
+        pub(super) session_calls: Counter<u64>,
+        pub(super) sessions_ended: Counter<u64>,
     }
 
     impl std::fmt::Debug for Instruments {
@@ -422,6 +451,18 @@ mod imp {
                 pool_in_use: m
                     .u64_gauge("sandboxd.pool.slots_in_use")
                     .with_description("Instance pool slots in use")
+                    .build(),
+                sessions_active: m
+                    .i64_gauge("sandboxd.sessions.active")
+                    .with_description("Live interpreter sessions")
+                    .build(),
+                session_calls: m
+                    .u64_counter("sandboxd.session.calls")
+                    .with_description("Calls run in sessions")
+                    .build(),
+                sessions_ended: m
+                    .u64_counter("sandboxd.sessions.ended")
+                    .with_description("Sessions ended, by reason")
                     .build(),
             }
         }

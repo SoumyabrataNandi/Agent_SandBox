@@ -38,6 +38,12 @@ pub(crate) const FILES: &[(&str, &str)] = &[
 /// The helper dir is first on `sys.path` only for that import, so it doesn't scan the stdlib's
 /// zip/dir finders (a cost a plain `print(1)` never paid); `main()` appends it for `sandbox_net`.
 pub(crate) const PYTHON_LAUNCHER: &str = "import sys;sys.path.insert(0,'/usr/local/lib/sandboxd');import sandboxd_boot;del sys.path[0];sandboxd_boot.main()";
+/// `python -c` launcher for a session on the upstream interpreter (C3-U4): the session loop,
+/// with the same lazy network patcher as the bootstrap.
+pub(crate) const PYTHON_SESSION_LAUNCHER: &str = "import sys;sys.path.append('/usr/local/lib/sandboxd');import sandboxd_session;sandboxd_session.main()";
+/// Guest path of the JavaScript session loop (C3-U4).
+pub(crate) const JS_SESSION: &str = "/usr/local/lib/sandboxd/session.mjs";
+
 /// Whether a Python run needs the bootstrap (NFR-N3 vs. N2.3).
 ///
 /// The bootstrap's first `compile()` makes CPython build its AST types (~22 M fuel), a cost a
@@ -140,6 +146,13 @@ mod tests {
         assert!(PYTHON_LAUNCHER.contains(&format!("'{}'", sandboxd_policy::HELPER_GUEST_PATH)));
         assert!(FILES.iter().any(|(n, _)| *n == "sandboxd_boot.py"));
         assert!(FILES.iter().any(|(n, _)| *n == "fetch.js"));
+        let (dir, file) = JS_SESSION.rsplit_once('/').expect("path");
+        assert_eq!(dir, sandboxd_policy::HELPER_GUEST_PATH);
+        assert!(FILES.iter().any(|(n, _)| *n == file));
+        assert!(FILES.iter().any(|(n, _)| *n == "sandboxd_session.py"));
+        assert!(
+            PYTHON_SESSION_LAUNCHER.contains(&format!("'{}'", sandboxd_policy::HELPER_GUEST_PATH))
+        );
     }
 
     #[test]

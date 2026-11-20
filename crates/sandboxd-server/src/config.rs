@@ -84,6 +84,7 @@ struct RawRedact {
 struct RawRuntime {
     pooling: Option<String>,
     snapshots: Option<String>,
+    max_sessions: Option<usize>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -233,6 +234,12 @@ impl ServerConfig {
             c.snapshots = sandboxd_runtime::SnapshotMode::parse(v)
                 .ok_or_else(|| format!("runtime.snapshots {v:?}: use auto, on or off"))?;
         }
+        if let Some(n) = raw.runtime.max_sessions {
+            if n > 10_000 {
+                return Err(format!("runtime.max_sessions {n}: at most 10000"));
+            }
+            c.admission.max_sessions = n;
+        }
         c.otlp_endpoint = raw.telemetry.otlp_endpoint.filter(|e| !e.is_empty());
         if let Some(e) = &c.otlp_endpoint {
             let ok = (e.starts_with("http://") || e.starts_with("https://"))
@@ -368,6 +375,10 @@ proxy = \"socks5://x\"
         let c = ServerConfig::from_toml("[runtime]\nsnapshots = \"off\"\n", p).expect("snapshots");
         assert_eq!(c.snapshots, sandboxd_runtime::SnapshotMode::Off);
         assert!(ServerConfig::from_toml("[runtime]\nsnapshots = \"sometimes\"\n", p).is_err());
+        assert_eq!(ServerConfig::default().admission.max_sessions, 16);
+        let c = ServerConfig::from_toml("[runtime]\nmax_sessions = 0\n", p).expect("sessions");
+        assert_eq!(c.admission.max_sessions, 0);
+        assert!(ServerConfig::from_toml("[runtime]\nmax_sessions = 20000\n", p).is_err());
         assert!(ServerConfig::from_toml("[runtime]\nbogus = 1\n", p).is_err());
     }
 

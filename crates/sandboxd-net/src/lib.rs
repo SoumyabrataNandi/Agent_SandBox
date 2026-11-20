@@ -177,6 +177,7 @@ impl Broker {
             inner: Arc::new(RunInner {
                 net,
                 client,
+                call: std::sync::Mutex::new((ctx.run_id, ctx.deadline)),
                 ctx,
                 quota,
                 proxy_active: self.inner.proxy.is_some(),
@@ -193,6 +194,8 @@ pub struct RunCtx {
     /// The run's wall-clock deadline: network time counts against it (N1.2).
     pub deadline: Instant,
     pub audit: Arc<dyn AuditSink>,
+    /// Session id for audit events (cycle 3, C3-U4); `None` for one-shot runs.
+    pub session_id: Option<String>,
 }
 
 impl std::fmt::Debug for RunCtx {
@@ -218,6 +221,8 @@ pub(crate) struct RunInner {
     pub(crate) net: NetworkPolicy,
     pub(crate) client: Option<reqwest::Client>,
     pub(crate) ctx: RunCtx,
+    /// The current call's run id and deadline (sessions change them per call; C3-U4).
+    call: std::sync::Mutex<(RunId, Instant)>,
     quota: Quota,
     pub(crate) proxy_active: bool,
 }
@@ -266,18 +271,24 @@ impl RunInner {
         self.quota.hit.store(true, Ordering::SeqCst);
     }
 
+    fn current(&self) -> (RunId, Instant) {
+        *self.call.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
     pub(crate) fn emit(&self, kind: EventKind) {
-        self.ctx.audit.emit(
-            AuditEvent::new(kind)
-                .run(self.ctx.run_id)
-                .policy(self.ctx.policy.clone()),
-        );
+        let mut ev = AuditEvent::new(kind)
+            .run(self.current().0)
+            .policy(self.ctx.policy.clone());
+        if let Some(s) = &self.ctx.session_id {
+            ev = ev.session(s.clone());
+        }
+        self.ctx.audit.emit(ev);
     }
 
     /// Time left for network I/O, bounded by `cap`.
     pub(crate) fn budget(&self, cap: std::time::Duration) -> std::time::Duration {
-        self.ctx
-            .deadline
+        self.current()
+            .1
             .saturating_duration_since(Instant::now())
             .min(cap)
     }
@@ -362,6 +373,12 @@ impl RunNet {
                 Box::new(move |rel: &str| tcp::TcpDevice::create(run.clone(), rel)),
             );
         }
+    }
+
+    /// Sessions (C3-U4): attribute what follows to call `run_id`, with that call's wall-clock
+    /// deadline. Quotas are per session and are not reset.
+    pub fn begin_call(&self, run_id: RunId, deadline: Instant) {
+        *self.inner.call.lock().unwrap_or_else(|p| p.into_inner()) = (run_id, deadline);
     }
 
     /// Counters for the run result. Open TCP sessions are audited when their devices drop.

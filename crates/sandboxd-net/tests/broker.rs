@@ -212,6 +212,7 @@ fn run_with(broker: &Broker, p: &Policy, wall: Duration) -> (RunNet, Arc<MemoryS
         policy: "net".into(),
         deadline: Instant::now() + wall,
         audit: audit.clone() as Arc<dyn AuditSink>,
+        session_id: None,
     };
     (
         broker.for_run(p, ctx).expect("for_run").expect("grants"),
@@ -817,6 +818,7 @@ async fn no_grants_means_no_broker_and_overhead_is_small() {
         policy: "n".into(),
         deadline: Instant::now() + Duration::from_secs(1),
         audit: Arc::new(MemorySink::default()),
+        session_id: None,
     };
     assert!(
         broker().for_run(&none, ctx).expect("ok").is_none(),

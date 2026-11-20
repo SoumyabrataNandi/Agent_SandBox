@@ -16,7 +16,7 @@ mod sink;
 
 pub use event::{
     AssetPin, AuditEvent, Decision, EventKind, FileDigest, FsOp, LimitKind, MAX_CODE_BYTES,
-    MAX_FIELD_BYTES, Outcome, RunId, SCHEMA_VERSION, sha256_hex, token_principal,
+    MAX_FIELD_BYTES, Outcome, RunId, SCHEMA_VERSION, rfc3339_millis, sha256_hex, token_principal,
 };
 pub use redact::{PatternError, Redactor};
 #[cfg(any(test, feature = "testing"))]

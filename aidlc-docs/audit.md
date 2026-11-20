@@ -488,3 +488,17 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Q1–Q5 = A. CI run for 9e3ab22 (C3-U3) was again "canceled by @SoumyabrataNandi" ~4 min in (only supply-chain finished); told the user. Added guest session loops (sandboxd_session.py, session.mjs; device protocol {cell,path,args} → {status,exit_code}, EOF ends), sandboxd_boot.install_patcher(), and a `sandboxd-session` export in both custom interpreters; spike now reports snapshot exports. Pushing to build the interpreter release; host session engine next.
 
 ---
+
+---
+
+## C3-U4 construction; approval
+**Timestamp**: 2026-11-20
+**User Input**: "approve"
+**AI Response**: Pinned interpreter release interp-0bb2fe9cb3da6365 (adds `sandboxd-session`; digests match SHA256SUMS and GitHub). Built the session engine (runtime `session.rs`: actor-owned Store, session device, per-call fuel/deadline via call hook + epoch callback, idle guard, per-call run ids in fs/net audit), policy `[session]` max_lifetime/max_calls, server SessionStore + reaper, HTTP `/v1/sessions*`, MCP `session_create`/`session_close`/`run_code session_id`, `[runtime] max_sessions`, metrics, docs/MCP.md. Approval received before the test run; commit follows once build and test suites pass (failures will be reported, not committed over).
+
+---
+
+## C3-U4 verification and commit
+**Timestamp**: 2026-11-20
+**User Input**: (follows "approve")
+**AI Response**: Tests found and fixed three defects: (1) output buffers cleared before being read; (2) stale fuel in hot loops, so the per-call CPU budget never fired (fixed with fuel_async_yield_interval 10M); (3) a forged reply let the next call's budget arm early (budgets now arm only when the device delivers the frame; idle guard otherwise). Results: runtime session 12/12, server sessions 4/4, all other workspace suites green incl. escape 17 + E-NET 11; clippy clean. One one-shot timing assertion (ac2_wall_clock_busy_loop, end-to-end < 2.5 s) missed under full-workspace parallel load and passed on its own. Wrote code-summary.md; committing C3-U4.

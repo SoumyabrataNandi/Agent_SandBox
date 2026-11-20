@@ -136,6 +136,17 @@ pub enum EventKind {
         code: Option<String>,
         inputs: Vec<FileDigest>,
     },
+    /// A session was created (C3-U4).
+    #[serde(rename = "session.start")]
+    SessionStart { lang: String },
+    /// A session ended: `closed`, `idle`, `lifetime`, `max_calls`, `limit`, `exited`,
+    /// `shutdown` or `error`.
+    #[serde(rename = "session.end")]
+    SessionEnd {
+        reason: String,
+        calls: u64,
+        duration_ms: u64,
+    },
     #[serde(rename = "run.end")]
     RunEnd {
         outcome: Outcome,
@@ -288,7 +299,9 @@ impl EventKind {
             EventKind::LimitHit { .. }
             | EventKind::Dropped { .. }
             | EventKind::ServerStart { .. }
+            | EventKind::SessionStart { .. }
             | EventKind::ServerStop => {}
+            EventKind::SessionEnd { reason, .. } => field(reason),
         }
     }
 }
@@ -321,6 +334,9 @@ pub struct AuditEvent {
     pub policy: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub principal: Option<String>,
+    /// Session the event belongs to (cycle 3, C3-U4); absent for one-shot runs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
     #[serde(flatten)]
     pub kind: EventKind,
 }
@@ -361,8 +377,14 @@ impl AuditEvent {
             run_id: None,
             policy: None,
             principal: None,
+            session_id: None,
             kind,
         }
+    }
+    /// Attach the session id (C3-U4).
+    pub fn session(mut self, id: impl Into<String>) -> Self {
+        self.session_id = Some(id.into());
+        self
     }
     /// Attach the run id.
     pub fn run(mut self, id: RunId) -> Self {

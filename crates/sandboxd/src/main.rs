@@ -283,10 +283,15 @@ async fn build(
         broker: network_broker(&cfg.network)?,
         pooling: cfg.pooling,
         snapshots: cfg.snapshots,
-        // ADR-C3-3: one slot per concurrent run, plus start-up tasks (bytecode, probes).
-        pool_slots: u32::try_from(admission.max_concurrent)
-            .unwrap_or(u32::MAX)
-            .saturating_add(2),
+        // ADR-C3-3: one slot per concurrent run and per live session (C3-U4), plus start-up
+        // tasks (bytecode, probes).
+        pool_slots: u32::try_from(
+            admission
+                .max_concurrent
+                .saturating_add(admission.max_sessions),
+        )
+        .unwrap_or(u32::MAX)
+        .saturating_add(2),
         ..RuntimeConfig::default()
     };
     let (sandbox, report) = Sandbox::new(rc, audit.clone())
@@ -541,11 +546,13 @@ async fn run(a: RunArgs, cfg: &ServerConfig) -> ExitCode {
             stdout: None,
             stderr: None,
         }),
+        session_id: None,
     };
     let admission = sandboxd_server::AdmissionConfig {
         max_concurrent: 1,
         queue_depth: 1,
         queue_timeout: Duration::from_secs(60),
+        max_sessions: 0,
     };
     let stack = match build(cfg, AuditDest::File(None), admission).await {
         Ok(s) => s,
@@ -740,6 +747,7 @@ async fn serve(mut cfg: ServerConfig, listen: Option<String>) -> ExitCode {
             eprintln!("sandboxd: shutting down (draining runs)");
         })
         .await;
+    stack.service.close_all_sessions().await;
     stack
         .service
         .audit()
@@ -769,6 +777,7 @@ async fn mcp(cfg: &ServerConfig) -> ExitCode {
             .map_err(|e| e.to_string()),
         Err(e) => Err(e.to_string()),
     };
+    stack.service.close_all_sessions().await;
     stack
         .service
         .audit()
