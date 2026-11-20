@@ -222,8 +222,10 @@ impl Instruments {
     pub(crate) fn session_ended(&self, reason: &str) {
         #[cfg(feature = "otel")]
         if let Some(i) = &self.inner {
-            i.sessions_ended
-                .add(1, &[KeyValue::new("reason", reason.to_string())]);
+            i.sessions_ended.add(
+                1,
+                &[opentelemetry::KeyValue::new("reason", reason.to_string())],
+            );
         }
         #[cfg(not(feature = "otel"))]
         let _ = reason;
@@ -486,8 +488,10 @@ mod imp {
         }
 
         pub(super) fn reject(&self, reason: &str) {
-            self.rejected
-                .add(1, &[KeyValue::new("reason", reason.to_string())]);
+            self.rejected.add(
+                1,
+                &[opentelemetry::KeyValue::new("reason", reason.to_string())],
+            );
         }
     }
 }

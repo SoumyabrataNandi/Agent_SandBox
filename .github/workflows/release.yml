@@ -57,6 +57,7 @@ jobs:
           cp LICENSE NOTICE THIRD_PARTY_NOTICES.md README.md THREAT_MODEL.md "dist/${name}/"
           cp docs/MCP.md "dist/${name}/MCP.md"
           cp docs/NETWORK.md "dist/${name}/NETWORK.md"
+          cp docs/BENCHMARKS.md "dist/${name}/BENCHMARKS.md"
           python - "dist/${name}/licenses" <<'PY'
           import sys, zipfile, tomllib, pathlib
           out = pathlib.Path(sys.argv[1])

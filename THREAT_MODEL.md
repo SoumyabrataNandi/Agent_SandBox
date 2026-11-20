@@ -1,7 +1,8 @@
 # sandboxd threat model
 
 Finalized in U6 (2026-11-18); extended in cycle 2 (C2-U5, 2026-11-19) for network egress (T13–T18,
-R8) and OTLP export. Every threat maps to tests in `tests/escape-suite` (release-blocking on
+R8) and OTLP export; extended in cycle 3 (C3-U6, 2026-11-20) for pooling, snapshots and persistent
+sessions (T19–T23, R11–R13). Every threat maps to tests in `tests/escape-suite` (release-blocking on
 Linux x64/arm64, macOS and Windows) or to unit/integration tests in the named crate.
 
 ## Assets
@@ -10,7 +11,8 @@ Linux x64/arm64, macOS and Windows) or to unit/integration tests in the named cr
 - Host availability: CPU, memory, disk, file descriptors, the server process itself
 - Confidentiality and integrity of concurrent runs
 - Integrity of the audit log; API tokens
-- Integrity of the interpreter binaries and the compiled-module cache
+- Integrity of the interpreter binaries, snapshots and the compiled-module cache
+- Session state (interpreter globals, `/work`): confidential to the principal that created the session
 
 ## Adversaries
 1. **Guest code:** fully attacker-controlled, from a model error or prompt injection. This is the primary adversary.
@@ -25,6 +27,7 @@ Linux x64/arm64, macOS and Windows) or to unit/integration tests in the named cr
 | Guest ↔ host | wasmtime (memory safety, no ambient authority); WASI preopens via cap-std; the interposer (ADR-001: lexical mount-escape checks, catch-all `/`, live `/out` quota, audit); fuel, epoch and outer timeout; linear-memory limiter; 1 MiB wasm stack inside a 4 MiB fiber; capped output streams |
 | Caller ↔ server | Bearer tokens (SHA-256 at rest, constant-time compare); loopback-default bind and refusal on public bind without tokens; body limit; strict request schema; named operator policies, tighten-only overrides; input name, count and size validation before disk |
 | Guest ↔ network | No sockets in WASI p1. Egress exists only as the host broker's virtual devices (`/dev/sandbox/http`, `/dev/sandbox/tcp/<host>:<port>`), registered per run and only for what the policy grants. The broker checks the allowlist (scheme, host, port, method, normalized path prefix) **before** DNS. Every resolved address is checked against private/loopback/link-local/metadata ranges and the connection is **pinned** to the vetted address. Redirects are followed by the broker, re-checked per hop. The broker owns framing and hop-by-hop headers. Quotas and timeouts apply per run; there is a per-run client and pool. Every request and connection is audited. Guest-side shims make no security decisions. |
+| Run ↔ run, session ↔ session (cycle 3) | A fresh instance per run (pooled slots are reset by wasmtime); snapshots hold only interpreter start-up state, built from pinned assets with an empty environment. A session is one interpreter owned by one principal, with its own `/work`, `/in` and network quotas; other principals can't tell it exists. Each call has its own budget, armed when the guest reads the call |
 | Build ↔ upstream | SHA-256 pins verified at fetch and at build; `Cargo.lock`; cargo-deny/cargo-audit; module-cache sidecar hash; release `SHA256SUMS` + build-provenance attestation |
 
 ## Threat register
@@ -48,6 +51,11 @@ Linux x64/arm64, macOS and Windows) or to unit/integration tests in the named cr
 | T16 | Request smuggling, header/CRLF injection, Host spoofing, method injection, malformed device frames | Strict header names/values (no CR/LF/NUL); the broker sets `Host`, `Content-Length`, `Transfer-Encoding`, `Connection` and drops hop-by-hop, Connection-listed and `Proxy-*` headers. Methods validated. Strict length-prefixed frames with `deny_unknown_fields` and size limits. | E-NET-5 (+ JS), E-NET-9 |
 | T17 | Exfiltration to **allowed** hosts; slow/hanging servers holding resources | By design the operator trusts allowed hosts; bounded by `max_requests`, request/response/total byte quotas, connect/request timeouts within the run's wall clock; fully audited (host, IP, port, method, path, status, bytes) | E-NET-6; broker quota/timeout tests |
 | T18 | Guest use of proxies or the operator's proxy; cross-run state leakage through connection pools | Guest proxy use (`*_PROXY` env, `ProxyHandler`, `set_tunnel`, absolute-form requests) is refused, and a proxy host would also need its own allowlist rule. The operator proxy is configured only in `sandboxd.toml`; system proxies are never used implicitly. A per-run client and pool (no shared cookies/connections). | E-NET-8, E-NET-11 |
+| T19 | Data remnants across pooled instances and runs (cycle 3: pooling, snapshots) | wasmtime resets or decommits linear memory when a pool slot is reused (copy-on-write from the module image where supported); every run is a fresh instance from the same image; per-run `/code`, `/in`, `/out` dirs; per-run network client | `pooled_memory_is_reset_between_instances` (200 instances, raw memory scanned for the previous canary); `runs_never_see_state_from_previous_runs`; **E-POOL-1** (concurrent plant/probe runs across both languages: globals, `sys.modules`, `gc` heap, env, every reachable file) |
+| T20 | Session hijacking or probing (cycle 3: sessions) | Sessions are bound to the creating principal. Ids are `ses_` + 122 random bits. Another principal, an unknown id and a malformed id all get the same `404 SESSION_NOT_FOUND`. Probes are audited (`policy.denied` with the prober's name). Sessions don't share state: one interpreter, `/work` and `/in` per session | **E-SES-1** (identical 404 bodies, GET/run/DELETE/`/v1/runs` routing, hostile ids, audit), **E-SES-2** (live sibling, plain run and slot-reusing successors see nothing; positive control; no host leftovers) |
+| T21 | Tampered snapshot or custom interpreter | Interpreter sources and wasi-sdk pinned and hash-verified; the release is pinned by SHA-256 in `assets/manifest.toml` with build provenance; snapshots are cached like modules (sidecar hash, rebuild on mismatch); snapshots are rebuilt from the pinned interpreter when the cache key changes | **E-SNAP-1** (flipped byte and a swapped-in *valid* module: both rebuilt, sidecars re-hashed, runs correct); `sandboxd-assets` pins; runtime cache-tamper test |
+| T22 | Secrets or host data baked into a snapshot | Snapshots are initialised with an empty environment, fixed argv and read-only stdlib/helpers only; preopens and environ are reset before the snapshot is taken; per-run argv, env and randomness are injected at run time | **E-SNAP-2** (host paths, temp/cache dirs and host env values are absent from a snapshot run's heap, modules and files; the run is verified to be on the snapshot interpreter); `snapshot_and_upstream_paths_are_indistinguishable` |
+| T23 | Resource exhaustion via held sessions; unbudgeted CPU between calls; abusing the session channel | `[runtime] max_sessions` and per-policy `max_sessions` (reservations, so concurrent creates can't overshoot); `idle_ttl`, `max_lifetime`, `max_calls`; per-session memory limit; pool sized for runs + sessions. Per-call fuel and wall-clock budgets arm only when the guest reads the next call frame; an **idle guard** (200 M fuel) stops a guest that computes between calls, e.g. after forging the loop's reply. The session device opens once; a limit ends the session | **E-SES-3** (reopen refused; forged replies on every fd + spin → session ends with `limit` within seconds, audited); runtime `a_forged_reply_cannot_buy_unbudgeted_cpu`, `busy_loops_are_stopped_by_the_call_budgets`; server caps/idle reaper tests |
 
 ## Residual risks (accepted / owned)
 | ID | Risk | Owner / plan |
@@ -62,3 +70,6 @@ Linux x64/arm64, macOS and Windows) or to unit/integration tests in the named cr
 | R8 | With an operator proxy configured, the **proxy** resolves names, so sandboxd cannot pin addresses (DNS rebinding / private targets *behind the proxy*) | The broker still enforces the allowlist and IP-literal checks before sending to the proxy. Operators must configure the proxy to deny private and metadata ranges (docs/NETWORK.md) |
 | R9 | Exfiltration to allowed hosts (T17) is possible by design | Allow only hosts you trust with the run's data; keep quotas tight; review `net.request` audit events |
 | R10 | Python programs that hide their network imports (e.g. `getattr(__builtins__, …)`) under a policy **without** grants get WASI's generic socket error instead of the "not allowed by policy" message (bootstrap heuristic, NFR-N3) | Error clarity only: without grants there are no network devices |
+| R11 | Pooled instances share a process: a wasmtime memory-reset bug would expose one run's data to the next (T19 relies on it) | Covered by R1 (pin, track advisories); the pool test scans raw memory on every CI run. `[runtime] pooling = "off"` allocates fresh memory per run |
+| R12 | A session keeps one interpreter for its lifetime: code from earlier calls (including any compromise of the interpreter) persists into later calls of the **same** session | By design: a session belongs to one principal, who supplies all its code. Sessions never cross principals (T20), and `max_lifetime`/`max_calls` bound them |
+| R13 | Session budgets are enforced to within one epoch tick (10 ms) plus 10 M fuel | Bounded overshoot, measured by the runtime tests |

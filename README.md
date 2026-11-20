@@ -11,8 +11,9 @@ audits every capability use. Agents reach it over a CLI, an HTTP API, or as an M
 
 | | |
 |---|---|
-| Python `print(1)` | ~0.1–0.2 s end to end (stdlib bytecode precompiled) |
-| JavaScript `console.log` | ~6 ms |
+| Python `print(1)` | milliseconds through the server: runs start from a pre-initialised interpreter snapshot in a pooled instance slot ([measured numbers](docs/BENCHMARKS.md)) |
+| JavaScript `console.log` | a few milliseconds |
+| Sessions | Optional persistent interpreters (like a notebook kernel): state carries over between calls, each call keeps its own limits |
 | Warm start (cached modules) | ~0.1 s |
 | Isolation | wasmtime + WASI preopens; no sockets, no env inheritance, no host paths outside mounts |
 | Network | Off by default. Per-policy HTTP(S)/TCP allowlists through an SSRF-hardened, audited broker |
@@ -47,6 +48,18 @@ curl -H "Authorization: Bearer $TOKEN" -d '{"language":"python","code":"print(6*
 - ✅ Network access **when a policy grants it**: `urllib`, `http.client`, `socket.create_connection` and `fetch` work unchanged, through an allowlisting broker. See [docs/NETWORK.md](docs/NETWORK.md).
 - ❌ `pip install` and non-blocking/async sockets.
 
+## Performance features (cycle 3)
+- **Snapshots** (`[runtime] snapshots = "auto"`): CPython and QuickJS are built from pinned sources in CI,
+  pre-initialised with Wizer and pinned by SHA-256. At start-up the server compiles and caches the
+  snapshots; each run starts from one instead of booting the interpreter. Runs whose policy memory
+  limit is below the snapshot's floor use the upstream interpreter.
+- **Pooling** (`[runtime] pooling = "auto"`): instance slots are reserved once and reused; wasmtime
+  resets their memory between runs. Runs wait for a free slot instead of failing.
+- **Sessions** (`[session] enabled = true` in a policy): `POST /v1/sessions`, then
+  `POST /v1/sessions/{id}/runs`, or the MCP tools `session_create` / `run_code {session_id}` /
+  `session_close`. Bound to the creating principal; ended by idle TTL, lifetime, call count, a limit
+  or close. See [docs/MCP.md](docs/MCP.md#sessions-cycle-3).
+
 ## Benchmarks
 [docs/BENCHMARKS.md](docs/BENCHMARKS.md) compares sandboxd with `docker run`, `docker exec` and gVisor
 on a GitHub-hosted Linux runner: latency, throughput, memory and session calls. It is generated
@@ -57,6 +70,8 @@ from the `bench` workflow's results (`scripts/bench/`), never edited by hand.
 CPU/memory/output bombs, subprocess/socket attempts, policy widening, auth bypass and input abuse,
 plus the **E-NET** network family (SSRF in every IP encoding, DNS-to-private, redirects, header
 injection, downgrades, proxies, quotas, slowloris). Forbidden servers must never see a connection.
+Cycle 3 adds pool remnants, session hijacking and leakage, the session channel, snapshot tampering
+and host data in snapshots (E-POOL, E-SES, E-SNAP).
 Every case plants random canaries on the host that must never appear in any output, artifact or audit
 line. It runs on Linux, macOS and Windows in CI and against every release binary.
 

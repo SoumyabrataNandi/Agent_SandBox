@@ -61,6 +61,8 @@ allow_private_ips = true      # db.internal.example resolves to 10.x
 
 Network time counts against the run's `wall_clock`. Exceeding a quota or timeout makes the run's outcome `limit`, with `network` in `limits_hit`.
 
+In a **session**, these quotas apply to the whole session, not to each call. Each call's network time counts against that call's `wall_clock`, and every `net.*` audit event carries the call's `run_id` and the `session_id`.
+
 ### Private addresses and cloud metadata
 `allow_private_ips = false` is the default. It blocks loopback, RFC 1918, CGNAT, link-local, ULA, multicast, documentation ranges, and IPv6 transition forms that embed one of those addresses. If **any** address a name resolves to is blocked, the request is refused.
 

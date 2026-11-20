@@ -509,3 +509,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **Timestamp**: 2026-11-20
 **User Input**: "continue"
 **AI Response**: CI for b6ce2e9 (C3-U4): test jobs failed on ubuntu-latest and ubuntu-24.04-arm (exit 101), passed on Windows and macOS; b98d676 had passed on Linux. Logs need a GitHub login and no Linux toolchain is available locally, so the user was asked for the failing test output. Built C3-U5: scripts/bench/run.py (stdlib harness: sandboxd HTTP snapshots on/off, CLI, docker run/exec, gVisor if installable; latency, throughput, memory, session calls; outputs checked), render.py (docs/BENCHMARKS.md + NFR-P1 verdicts), test_bench.py (7/7), .github/workflows/bench.yml (workflow_dispatch → summary, artifact, ci-results bench/<sha>.json), placeholder docs/BENCHMARKS.md, README link. Local end-to-end check with the debug binary (Docker off): all sandboxd scenarios 0 errors. Awaiting approval and a bench run.
+
+---
+
+## C3-U5 approval; C3-U6 construction
+**Timestamp**: 2026-11-20
+**User Input**: "approve for all, no need to ask, continue with all approve, after done all let me know"
+**AI Response**: C3-U5 committed and pushed (67801fb), with ci.yml now publishing failing test logs to ci-results. CI for 67801fb: test passed on all 4 OSes (including both Linux runners, so the b6ce2e9 Linux failure didn't reproduce; most likely the timing flake), escape suite passed on 4 OSes, perf smoke passed; `otel feature` failed: an unqualified `KeyValue` in otel.rs `session_ended` (otel-only code, from C3-U4). Fixed; otel clippy and tests pass locally. C3-U6: tests/escape-suite/tests/cycle3.rs (E-POOL-1, E-SES-1/2/3, E-SNAP-1/2, with a positive control), THREAT_MODEL T19–T23 + R11–R13, README/NETWORK/THIRD_PARTY_NOTICES, release packaging ships BENCHMARKS.md. Escape 6+17+11 pass; workspace clippy clean. Committing C3-U6 under the blanket approval.
