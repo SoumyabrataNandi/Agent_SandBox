@@ -83,6 +83,7 @@ struct RawRedact {
 #[serde(deny_unknown_fields)]
 struct RawRuntime {
     pooling: Option<String>,
+    snapshots: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -148,6 +149,8 @@ pub struct ServerConfig {
     pub network: NetworkConfig,
     /// `[runtime] pooling` (cycle 3, FR-P1).
     pub pooling: sandboxd_runtime::PoolingMode,
+    /// `[runtime] snapshots` (cycle 3, FR-S1).
+    pub snapshots: sandboxd_runtime::SnapshotMode,
 }
 
 impl Default for ServerConfig {
@@ -167,6 +170,7 @@ impl Default for ServerConfig {
             otlp_interval: crate::otel::DEFAULT_EXPORT_INTERVAL,
             network: NetworkConfig::default(),
             pooling: sandboxd_runtime::PoolingMode::Auto,
+            snapshots: sandboxd_runtime::SnapshotMode::Auto,
         }
     }
 }
@@ -224,6 +228,10 @@ impl ServerConfig {
         if let Some(p) = &raw.runtime.pooling {
             c.pooling = sandboxd_runtime::PoolingMode::parse(p)
                 .ok_or_else(|| format!("runtime.pooling {p:?}: use auto, on or off"))?;
+        }
+        if let Some(v) = &raw.runtime.snapshots {
+            c.snapshots = sandboxd_runtime::SnapshotMode::parse(v)
+                .ok_or_else(|| format!("runtime.snapshots {v:?}: use auto, on or off"))?;
         }
         c.otlp_endpoint = raw.telemetry.otlp_endpoint.filter(|e| !e.is_empty());
         if let Some(e) = &c.otlp_endpoint {
@@ -353,6 +361,13 @@ proxy = \"socks5://x\"
             assert_eq!(c.pooling, want);
         }
         assert!(ServerConfig::from_toml("[runtime]\npooling = \"maybe\"\n", p).is_err());
+        assert_eq!(
+            ServerConfig::default().snapshots,
+            sandboxd_runtime::SnapshotMode::Auto
+        );
+        let c = ServerConfig::from_toml("[runtime]\nsnapshots = \"off\"\n", p).expect("snapshots");
+        assert_eq!(c.snapshots, sandboxd_runtime::SnapshotMode::Off);
+        assert!(ServerConfig::from_toml("[runtime]\nsnapshots = \"sometimes\"\n", p).is_err());
         assert!(ServerConfig::from_toml("[runtime]\nbogus = 1\n", p).is_err());
     }
 

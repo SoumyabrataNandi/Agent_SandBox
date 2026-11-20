@@ -31,6 +31,7 @@ fn line(kind: EventKind) -> Value {
 #[test]
 fn envelope_and_run_start_golden() {
     let v = line(EventKind::RunStart {
+        interpreter: None,
         lang: "python".into(),
         code_sha256: sha256_hex(b"print(1)"),
         code_bytes: 8,
@@ -179,6 +180,7 @@ fn free_text_is_redacted_and_truncated() {
     assert_eq!(v["requested"], "Bearer [REDACTED:bearer]");
 
     let code = line(EventKind::RunStart {
+        interpreter: None,
         lang: "python".into(),
         code_sha256: String::new(),
         code_bytes: 0,

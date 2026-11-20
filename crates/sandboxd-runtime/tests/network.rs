@@ -64,13 +64,14 @@ fn root() -> std::path::PathBuf {
     std::env::temp_dir().join("sandboxd-runtime-tests")
 }
 
-fn build(broker: Option<Arc<Broker>>) -> (Sandbox, Arc<MemorySink>) {
+fn build(broker: Option<Arc<Broker>>, snapshots: SnapshotMode) -> (Sandbox, Arc<MemorySink>) {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("rt");
         let audit = Arc::new(MemorySink::default());
         let cfg = RuntimeConfig {
             vfs: VfsConfig::under(root()),
             broker,
+            snapshots,
             ..RuntimeConfig::default()
         };
         let (sb, _) = rt
@@ -92,7 +93,7 @@ fn sandbox() -> &'static (Sandbox, Arc<MemorySink>) {
             ..BrokerConfig::default()
         })
         .expect("broker");
-        build(Some(Arc::new(broker)))
+        build(Some(Arc::new(broker)), SnapshotMode::Auto)
     })
 }
 
@@ -687,7 +688,7 @@ async fn no_grant_fails_clearly_in_both_languages() {
 #[tokio::test(flavor = "multi_thread")]
 async fn grants_without_a_broker_are_refused_before_the_guest_runs() {
     static NO_BROKER: OnceLock<(Sandbox, Arc<MemorySink>)> = OnceLock::new();
-    let (sb, _) = NO_BROKER.get_or_init(|| build(None));
+    let (sb, _) = NO_BROKER.get_or_init(|| build(None, SnapshotMode::Auto));
     let r = run_on(sb, Language::Python, "print('ran')", http_policy(9, "")).await;
     assert_eq!(r.outcome, Outcome::Error);
     assert_eq!(
@@ -782,6 +783,28 @@ async fn devices_open_with_plain_python_open_and_info_is_minimal() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn python_bootstrap_is_used_only_when_networking_is_possible() {
+    // Snapshot path (cycle 3): the shims are preloaded and patched in the snapshot, so the C2-U3
+    // bootstrap is never loaded, whatever the program or policy.
+    let snap = py(
+        "import sys
+print('sandboxd_boot' in sys.modules, 'sandbox_net' in sys.modules)  # socket
+",
+        http_policy(9, ""),
+    )
+    .await;
+    assert_eq!(out(&snap).trim(), "False True");
+
+    // Upstream path: the C2-U3 heuristic decides.
+    static UP: OnceLock<(Sandbox, Arc<MemorySink>)> = OnceLock::new();
+    let up = &UP
+        .get_or_init(|| {
+            let broker = Broker::new(BrokerConfig::default()).expect("broker");
+            build(Some(Arc::new(broker)), SnapshotMode::Off)
+        })
+        .0;
+    let py = |code: &'static str, p: Arc<Policy>| async move {
+        run_on(up, Language::Python, code, p).await
+    };
     // NFR-N3: a plain program without grants launches exactly as in cycle 1 (no bootstrap).
     let plain = py(
         "import sys\nprint('sandboxd_boot' in sys.modules)\n",

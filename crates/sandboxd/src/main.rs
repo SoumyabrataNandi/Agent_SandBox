@@ -282,6 +282,7 @@ async fn build(
         vfs: vfs_config(cfg),
         broker: network_broker(&cfg.network)?,
         pooling: cfg.pooling,
+        snapshots: cfg.snapshots,
         // ADR-C3-3: one slot per concurrent run, plus start-up tasks (bytecode, probes).
         pool_slots: u32::try_from(admission.max_concurrent)
             .unwrap_or(u32::MAX)
@@ -291,6 +292,16 @@ async fn build(
     let (sandbox, report) = Sandbox::new(rc, audit.clone())
         .await
         .map_err(|e| e.to_string())?;
+    if let Some(why) = &report.snapshot_fallback {
+        tracing::warn!(reason = %why, "interpreter snapshots unavailable; using the upstream interpreters");
+    }
+    if report.snapshot_python || report.snapshot_javascript {
+        tracing::info!(
+            python_floor_mib = report.snapshot_floor_python >> 20,
+            javascript_floor_mib = report.snapshot_floor_javascript >> 20,
+            "interpreter snapshots ready; policies with a lower memory limit use the upstream interpreters"
+        );
+    }
     if let Some(why) = &report.pooling_fallback {
         tracing::warn!(reason = %why, "pooling allocator unavailable; using on-demand allocation");
     }

@@ -17,6 +17,7 @@ sandboxd-net.workspace = true
 serde_json.workspace = true
 wasmtime.workspace = true
 wasmtime-wasi.workspace = true
+wasmtime-wizer.workspace = true
 tokio.workspace = true
 bytes.workspace = true
 zip.workspace = true

@@ -28,7 +28,7 @@ use crate::{
     cache::{ModuleCache, ensure_bytecode, ensure_helper_bytecode, python_wasm},
     error::RuntimeError,
     helpers::{JS_BOOT, PYTHON_LAUNCHER, ensure_helpers, python_needs_bootstrap},
-    native,
+    native, snapshot,
     stream::CappedStream,
     types::{Language, RunError, RunEvent, RunRequest, RunResult, Timings},
 };
@@ -50,6 +50,39 @@ pub struct RuntimeConfig {
     /// Pool size: concurrent instances (runs + sessions + start-up tasks). Runs wait for a slot
     /// rather than fail when all are in use.
     pub pool_slots: u32,
+    /// Pre-initialised interpreters (cycle 3, FR-S1).
+    pub snapshots: SnapshotMode,
+}
+
+/// Whether runs start from pre-initialised interpreter snapshots (FR-S1, ADR-C3-2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SnapshotMode {
+    /// Use snapshots when they can be built; otherwise fall back to the upstream interpreters.
+    #[default]
+    Auto,
+    /// Snapshots or a start-up error.
+    On,
+    /// Always the upstream interpreters.
+    Off,
+}
+
+impl SnapshotMode {
+    /// Parse `auto` / `on` / `off`.
+    pub fn parse(s: &str) -> Option<SnapshotMode> {
+        match s.to_ascii_lowercase().as_str() {
+            "auto" => Some(SnapshotMode::Auto),
+            "on" | "true" => Some(SnapshotMode::On),
+            "off" | "false" => Some(SnapshotMode::Off),
+            _ => None,
+        }
+    }
+}
+
+/// A pre-initialised interpreter, ready to instantiate.
+struct Snap {
+    pre: InstancePre<RunState>,
+    /// Initial linear memory; runs whose memory limit is lower use the upstream interpreter.
+    floor: u64,
 }
 
 /// How instances get their memory, tables and stacks (FR-P1, ADR-C3-3).
@@ -94,6 +127,7 @@ impl Default for RuntimeConfig {
             broker: None,
             pooling: PoolingMode::Auto,
             pool_slots: 64,
+            snapshots: SnapshotMode::Auto,
         }
     }
 }
@@ -109,6 +143,15 @@ pub struct WarmupReport {
     pub pooling: bool,
     /// `PoolingMode::Auto` fell back to on-demand allocation, and why.
     pub pooling_fallback: Option<String>,
+    /// Snapshot interpreters in use (Python, JavaScript).
+    pub snapshot_python: bool,
+    pub snapshot_javascript: bool,
+    /// Memory floor of each snapshot (bytes; 0 without one): runs whose memory limit is lower
+    /// use the upstream interpreter.
+    pub snapshot_floor_python: u64,
+    pub snapshot_floor_javascript: u64,
+    /// `SnapshotMode::Auto` couldn't build a snapshot, and why.
+    pub snapshot_fallback: Option<String>,
 }
 
 /// Linear-memory limiter (U4 design §4).
@@ -171,6 +214,8 @@ struct Inner {
     engine: Engine,
     python: InstancePre<RunState>,
     javascript: InstancePre<RunState>,
+    py_snap: Option<Snap>,
+    js_snap: Option<Snap>,
     stdlib: PathBuf,
     helpers: PathBuf,
     /// One permit per pool slot (pooling only): runs wait instead of failing when all are used.
@@ -305,6 +350,60 @@ impl Sandbox {
             }
         }
 
+        // Snapshots (FR-S1): built after the stdlib bytecode, so initialisation imports .pyc.
+        let mut snapshot_fallback = None;
+        let (py_snap, js_snap) = if cfg.snapshots == SnapshotMode::Off {
+            (None, None)
+        } else {
+            let make = async |name: &str,
+                              asset: &'static sandboxd_assets::Asset,
+                              argv0: &'static str,
+                              lib: Option<&std::path::Path>|
+                   -> Result<Snap, RuntimeError> {
+                let (m, _) = cache.load_or_compile(
+                    &engine,
+                    &format!("snapshot-{name}"),
+                    &snapshot::snapshot_sha(asset.sha256),
+                    || snapshot::build(&engine, asset.bytes, argv0, lib, &helpers),
+                )?;
+                if pool.is_some() {
+                    probe_instantiate(&engine, &m).await.map_err(|e| {
+                        RuntimeError::Compile(format!("pooling probe (snapshot {name}): {e}"))
+                    })?;
+                }
+                let pre = linker
+                    .instantiate_pre(&m)
+                    .map_err(|e| RuntimeError::Compile(e.to_string()))?;
+                Ok(Snap {
+                    floor: snapshot::memory_floor(&m),
+                    pre,
+                })
+            };
+            let py = make(
+                "python",
+                &sandboxd_assets::PYTHON_SNAPSHOT,
+                "python",
+                Some(stdlib.as_path()),
+            )
+            .await;
+            let js = make(
+                "javascript",
+                &sandboxd_assets::JAVASCRIPT_SNAPSHOT,
+                "qjs",
+                None,
+            )
+            .await;
+            let mut keep = |r: Result<Snap, RuntimeError>| match r {
+                Ok(s) => Ok(Some(s)),
+                Err(e) if cfg.snapshots == SnapshotMode::Auto => {
+                    snapshot_fallback.get_or_insert_with(|| e.to_string());
+                    Ok(None)
+                }
+                Err(e) => Err(e),
+            };
+            (keep(py)?, keep(js)?)
+        };
+
         let stop = Arc::new(AtomicBool::new(false));
         {
             let (engine, stop) = (engine.clone(), stop.clone());
@@ -326,6 +425,11 @@ impl Sandbox {
             elapsed: t0.elapsed(),
             pooling: pool.is_some(),
             pooling_fallback: None,
+            snapshot_python: py_snap.is_some(),
+            snapshot_javascript: js_snap.is_some(),
+            snapshot_floor_python: py_snap.as_ref().map_or(0, |s| s.floor),
+            snapshot_floor_javascript: js_snap.as_ref().map_or(0, |s| s.floor),
+            snapshot_fallback,
         };
         Ok((
             Sandbox {
@@ -333,6 +437,8 @@ impl Sandbox {
                     engine,
                     python,
                     javascript,
+                    py_snap,
+                    js_snap,
                     stdlib,
                     helpers,
                     slots: pool.map(|n| (n, Arc::new(tokio::sync::Semaphore::new(n as usize)))),
@@ -618,9 +724,25 @@ async fn run(
         )));
     }
 
+    // Interpreter path (FR-S1): the snapshot when available and the policy's memory limit is at
+    // least its initial memory (design Q7); otherwise the upstream interpreter.
+    let snap = match lang {
+        Language::Python => inner.py_snap.as_ref(),
+        Language::JavaScript => inner.js_snap.as_ref(),
+    }
+    .filter(|s| limits.memory.bytes() >= s.floor);
+
     // 2. run.start
     audit.emit(
         AuditEvent::new(EventKind::RunStart {
+            interpreter: Some(
+                if snap.is_some() {
+                    "snapshot"
+                } else {
+                    "upstream"
+                }
+                .into(),
+            ),
             lang: lang.as_str().into(),
             code_sha256: sha256_hex(req.code.as_bytes()),
             code_bytes: req.code.len() as u64,
@@ -642,19 +764,33 @@ async fn run(
 
     // 3. Filesystem.
     let stdlib = (lang == Language::Python).then_some(inner.stdlib.as_path());
-    let (file_name, argv0, pre) = match lang {
-        Language::Python => {
+    let (file_name, argv0, pre, entry) = match (lang, snap) {
+        // Snapshot: the network shims are preloaded, so no bootstrap/launcher is needed.
+        (Language::Python, Some(s)) => (
+            "main.py",
+            vec!["python", "/code/main.py"],
+            &s.pre,
+            "sandboxd-run",
+        ),
+        (Language::JavaScript, Some(s)) => (
+            "main.mjs",
+            vec!["qjs", "/code/main.mjs"],
+            &s.pre,
+            "sandboxd-run",
+        ),
+        (Language::Python, None) => {
             let mut argv = vec!["python", "-I", "-B", "-S", "-X", "frozen_modules=on"];
             if python_needs_bootstrap(policy.network().grants_anything(), &req.code) {
                 argv.extend(["-c", PYTHON_LAUNCHER]);
             }
             argv.push("/code/main.py");
-            ("main.py", argv, &inner.python)
+            ("main.py", argv, &inner.python, "_start")
         }
-        Language::JavaScript => (
+        (Language::JavaScript, None) => (
             "main.mjs",
             vec!["qjs", "--std", "-m", "-I", JS_BOOT, "/code/main.mjs"],
             &inner.javascript,
+            "_start",
         ),
     };
     let fs = match RunFs::create(
@@ -774,7 +910,7 @@ async fn run(
     let grace = EPOCH_TICK * 5;
     let call = async {
         let inst = pre.instantiate_async(&mut store).await?;
-        let start = inst.get_typed_func::<(), ()>(&mut store, "_start")?;
+        let start = inst.get_typed_func::<(), ()>(&mut store, entry)?;
         start.call_async(&mut store, ()).await
     };
     let outcome = tokio::time::timeout(limits.wall_clock + grace, call).await;

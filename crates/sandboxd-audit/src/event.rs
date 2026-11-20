@@ -126,6 +126,9 @@ pub struct AssetPin {
 pub enum EventKind {
     #[serde(rename = "run.start")]
     RunStart {
+        /// `snapshot` or `upstream` (cycle 3, FR-S1); absent in older events.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        interpreter: Option<String>,
         lang: String,
         code_sha256: String,
         code_bytes: u64,

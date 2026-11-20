@@ -3,13 +3,16 @@
 //! * [`PYTHON`] is the CPython WASI release zip (`python.wasm` + `lib/python3.x/**` + `LICENSE`).
 //!   It is unpacked into the hash-keyed cache by `sandboxd-vfs` (ADR-004).
 //! * [`JAVASCRIPT`] is the QuickJS-ng `qjs-wasi.wasm` module.
+//! * [`PYTHON_SNAPSHOT`] / [`JAVASCRIPT_SNAPSHOT`] are sandboxd's own builds of the same versions as
+//!   WASI reactors with `wizer-initialize` / `sandboxd-run` entry points (cycle 3, ADR-C3-1),
+//!   pre-initialised into snapshots at start-up by `sandboxd-runtime`.
 
 #![forbid(unsafe_code)]
 
 /// One pinned, embedded asset.
 #[derive(Debug, Clone, Copy)]
 pub struct Asset {
-    /// Manifest key (`python` / `javascript`).
+    /// Manifest key (`python`, `javascript`, `python_snapshot`, `javascript_snapshot`).
     pub name: &'static str,
     /// Upstream version string.
     pub version: &'static str,
@@ -26,7 +29,7 @@ pub struct Asset {
 include!(concat!(env!("OUT_DIR"), "/assets.rs"));
 
 /// All embedded assets, for `sandboxd version` and cache provisioning.
-pub const ALL: [Asset; 2] = [PYTHON, JAVASCRIPT];
+pub const ALL: [Asset; 4] = [PYTHON, JAVASCRIPT, PYTHON_SNAPSHOT, JAVASCRIPT_SNAPSHOT];
 
 #[cfg(test)]
 mod tests {

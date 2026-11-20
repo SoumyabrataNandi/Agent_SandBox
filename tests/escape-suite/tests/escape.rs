@@ -329,7 +329,15 @@ async fn e_fs_5_no_host_paths_leak() {
 #[tokio::test(flavor = "multi_thread")]
 async fn e_env_only_policy_variables() {
     let r = py("import os, json\nprint(json.dumps(dict(os.environ)))").await;
-    let env: Value = serde_json::from_slice(&r.stdout).expect("json env");
+    let env: Value = serde_json::from_slice(&r.stdout).unwrap_or_else(|e| {
+        panic!(
+            "json env: {e}; outcome {:?} exit {:?} error {:?}\n{}",
+            r.outcome,
+            r.exit_code,
+            r.error,
+            out(&r)
+        )
+    });
     assert_eq!(
         env,
         json!({"TZ": "UTC"}),

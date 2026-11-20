@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: Cycle 3 — CONSTRUCTION
-- **Current Stage**: C3-U3 snapshot integration — construction
+- **Current Stage**: C3-U3 built & tested — awaiting approval
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -100,7 +100,7 @@
 |---|---|
 | C3-U1 Snapshot spike | ✅ GO (user decision 2026-11-19) |
 | C3-U2 Pooling | ✅ Approved 2026-11-19 |
-| C3-U3 Snapshot integration | Answers all A; building (release pipeline first) |
+| C3-U3 Snapshot integration | Built & tested — awaiting approval |
 | C3-U4 Sessions | Not started |
 | C3-U5 Benchmarks | Not started |
 | C3-U6 Escape + docs | Not started |

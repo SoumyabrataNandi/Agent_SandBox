@@ -460,3 +460,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Release interp-f940919f383c1ce8 published (spike go in release mode) and pinned locally. Runtime snapshot integration built; snapshot tests pass (12 Python + 5 JS programs identical on both paths; no state carried between runs; per-language floors python 40 MiB, js 1.3 MiB equal what the upstream interpreters need; Windows: no CoW image, Python 26.9M vs 58.1M fuel). Full suites on the snapshot path found two interpreter bugs: (1) Python preload imported urllib.request before http.client was patched, so HTTPSHandler was never defined (NameError in build_opener); (2) QuickJS sandboxd-run never re-initialised `environ` after init reset it, so std.getenviron() crashed (E-ENV). Fixed both in the C entry points; added environ checks to the spike and parity tests. Pushing interpreter fixes alone to publish a corrected release before pinning.
 
 ---
+
+## C3-U3 built and tested
+**Timestamp**: 2026-11-20
+**User Input**: (none)
+**AI Response**: Corrected release interp-ef9ab1d314d38dc0 (spike go: Python 14.5x, JS 2.5x, compat incl. environ) pinned. All suites pass on the snapshot path: workspace (runtime 20, network 14, pool 6, snapshot 5, server, CLI, VFS, broker, audit, policy) and escape 17 + E-NET 11. Windows release perf: Python print(1) 31 ms (was 102–153), import-heavy 27 ms (was 167–299), JS 12 ms; no CoW on Windows (26.9M fuel). Summary: cycle-3/construction/c3-u3-snapshots/code-summary.md. Awaiting approval.
+
+---

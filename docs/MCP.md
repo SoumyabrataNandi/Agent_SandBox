@@ -56,6 +56,12 @@ tokens = [ { name = "claude", sha256 = "<from `sandboxd token new`>" } ]
 sink = "file"
 path = "D:/sandboxd/audit.jsonl"
 
+# Performance (cycle 3). Both default to "auto".
+# [runtime]
+# pooling = "auto"     # reuse pre-reserved instance slots; "off" allocates per run
+# snapshots = "auto"   # start runs from pre-initialised interpreters (built once at start-up,
+#                      # cached); "off" uses the upstream interpreters
+
 # Optional OTLP/HTTP export of the /metrics instruments plus one `sandboxd.run` span per run.
 # Needs a build with `cargo build --release -p sandboxd --features otel`; other builds ignore it
 # with a warning. Spans never contain code, output, paths or principals.
