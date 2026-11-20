@@ -474,3 +474,17 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: C3-U3 marked approved. Commit b849cc8 not yet on GitHub (push hangs: likely a Git Credential Manager sign-in prompt). Starting C3-U4 sessions design.
 
 ---
+
+## C3-U4 design issued
+**Timestamp**: 2026-11-20
+**User Input**: (follows "approve")
+**AI Response**: C3-U3 pushed (9e3ab22). Generated cycle-3/construction/c3-u4-sessions/design.md (session model, actor-owned Store, /dev/sandbox/session device + Python/JS guest loops, per-call accounting in the epoch callback, output rotation, /work, SessionStore + reaper, HTTP/MCP/audit/metrics, policy and server caps, security, interpreter path, tests) and design-questions.md (5 questions). Awaiting answers.
+
+---
+
+## C3-U4 answers; session guest loops + interpreter export
+**Timestamp**: 2026-11-20
+**User Input**: "accept recommended defaults"
+**AI Response**: Q1–Q5 = A. CI run for 9e3ab22 (C3-U3) was again "canceled by @SoumyabrataNandi" ~4 min in (only supply-chain finished); told the user. Added guest session loops (sandboxd_session.py, session.mjs; device protocol {cell,path,args} → {status,exit_code}, EOF ends), sandboxd_boot.install_patcher(), and a `sandboxd-session` export in both custom interpreters; spike now reports snapshot exports. Pushing to build the interpreter release; host session engine next.
+
+---

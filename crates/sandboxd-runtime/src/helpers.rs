@@ -26,6 +26,11 @@ pub(crate) const FILES: &[(&str, &str)] = &[
     ),
     ("sandbox_net.py", include_str!("../guest/sandbox_net.py")),
     ("boot.js", include_str!("../guest/boot.js")),
+    (
+        "sandboxd_session.py",
+        include_str!("../guest/sandboxd_session.py"),
+    ),
+    ("session.mjs", include_str!("../guest/session.mjs")),
     ("fetch.js", include_str!("../guest/fetch.js")),
 ];
 

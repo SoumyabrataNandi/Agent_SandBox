@@ -118,3 +118,25 @@ __attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
     js_std_free_handlers(rt);
     exit(status);
 }
+
+/* Session entry (C3-U4): scriptArgs as for a run, then the helper session loop (a module that
+ * serves calls through /dev/sandbox/session until the host ends the session). */
+__attribute__((export_name("sandboxd-session"))) void sandboxd_session(void) {
+    __wasilibc_ensure_environ();
+    __wasi_size_t argc = 0, buf_size = 0;
+    if (__wasi_args_sizes_get(&argc, &buf_size) != 0 || argc < 1) {
+        exit(70);
+    }
+    char **argv = calloc(argc + 1, sizeof(char *));
+    char *buf = malloc(buf_size + 1);
+    if (argv == NULL || buf == NULL || __wasi_args_get((uint8_t **)argv, (uint8_t *)buf) != 0) {
+        exit(70);
+    }
+    js_std_add_helpers(ctx, (int)argc - 1, argv + 1);
+    int status = eval_file("/usr/local/lib/sandboxd/session.mjs", JS_EVAL_TYPE_MODULE) < 0 ? 1 : 0;
+    if (status == 0) {
+        (void)js_std_loop(ctx);
+    }
+    js_std_free_handlers(rt);
+    exit(status);
+}

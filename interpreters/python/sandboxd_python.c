@@ -287,6 +287,27 @@ __attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
     _Exit(status);
 }
 
+/* Session entry (C3-U4): the same per-run set-up as sandboxd-run, then the helper session loop,
+ * which serves calls through /dev/sandbox/session until the host ends the session. The network
+ * shims are already patched in this snapshot (preloaded=True). */
+__attribute__((export_name("sandboxd-session"))) void sandboxd_session(void) {
+    apply_argv();
+    apply_environ();
+    run_private(PER_RUN, "per-run setup failed");
+    run_private("import sys
+"
+                "if '/usr/local/lib/sandboxd' not in sys.path:
+"
+                "    sys.path.append('/usr/local/lib/sandboxd')
+"
+                "import sandboxd_session
+"
+                "sandboxd_session.main(preloaded=True)
+",
+                "session loop");
+    _Exit(finish(0));
+}
+
 #ifdef SANDBOXD_SPIKE
 /* Diagnostics for the C3-U1 spike: the phases of sandboxd-run one at a time, so their cost
  * (fuel) can be measured separately. 1 argv, 2 environ, 3 per-run setup, 4 run the file,

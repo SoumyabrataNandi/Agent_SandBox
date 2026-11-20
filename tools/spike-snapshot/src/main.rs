@@ -487,6 +487,7 @@ async fn python(cx: &Ctx, upstream: &Path, custom: Option<&Path>) -> Value {
         "snapshot_build_ms": snapshot_ms,
         "compat": compat,
         "phases": phases,
+        "snapshot_exports": module_shape(&snap_mod),
         "snapshot_sections": sections(&snap),
         "custom_sections": sections(&custom_bytes),
         "go": all_equal && random_differs && speedup >= 5.0,
@@ -647,6 +648,7 @@ async fn javascript(cx: &Ctx, upstream: Option<&Path>, custom: Option<&Path>) ->
         "speedup": if sm > 0.0 { um / sm } else { 0.0 },
         "upstream_print_fuel": fu, "snapshot_print_fuel": fs,
         "snapshot_module_bytes": snap.len(),
+        "snapshot_exports": module_shape(&snap_mod),
         "compat": compat,
     })
 }

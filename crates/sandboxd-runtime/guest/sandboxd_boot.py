@@ -71,12 +71,18 @@ class _LazyPatcher:
         return spec
 
 
+def install_patcher():
+    """Install the lazy network patcher once (also used by the session loop, C3-U4)."""
+    if not any(isinstance(f, _LazyPatcher) for f in sys.meta_path):
+        sys.meta_path.insert(0, _LazyPatcher())
+
+
 def _run():
     # ['-c', '/code/main.py', *args] → ['/code/main.py', *args], exactly as in cycle 1.
     sys.argv = sys.argv[1:]
     path = sys.argv[0]
     sys.path.append(_HELPERS)  # `import sandbox_net` works; /code stays off sys.path
-    sys.meta_path.insert(0, _LazyPatcher())
+    install_patcher()
     with open(path, "rb") as f:
         source = f.read()
     code = compile(source, path, "exec", dont_inherit=True)
