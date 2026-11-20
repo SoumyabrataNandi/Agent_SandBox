@@ -349,6 +349,10 @@ const JS_PROGRAMS: &[(&str, &str)] = &[
         "async",
         "await Promise.resolve();\nconsole.log('after await');\n",
     ),
+    (
+        "environ",
+        "import * as std from 'qjs:std';\nconsole.log(JSON.stringify(std.getenviron()), std.getenv('TZ'));\n",
+    ),
 ];
 
 async fn python(cx: &Ctx, upstream: &Path, custom: Option<&Path>) -> Value {
@@ -569,7 +573,7 @@ async fn javascript(cx: &Ctx, upstream: Option<&Path>, custom: Option<&Path>) ->
                 "/code/main.mjs",
                 "x",
             ],
-            &[],
+            &[("TZ", "UTC")],
             &up_mounts,
         )
         .await;
@@ -578,7 +582,7 @@ async fn javascript(cx: &Ctx, upstream: Option<&Path>, custom: Option<&Path>) ->
             &snap_mod,
             "sandboxd-run",
             &["qjs", "/code/main.mjs", "x"],
-            &[],
+            &[("TZ", "UTC")],
             &up_mounts,
         )
         .await;

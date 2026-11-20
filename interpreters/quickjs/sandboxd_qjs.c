@@ -96,6 +96,9 @@ __attribute__((export_name("wizer-initialize"))) void wizer_initialize(void) {
 }
 
 __attribute__((export_name("sandboxd-run"))) void sandboxd_run(void) {
+    /* wizer-initialize de-initialised the environment; std.getenviron()/getenv read the C
+     * `environ`, so re-read this run's environment now. */
+    __wasilibc_ensure_environ();
     __wasi_size_t argc = 0, buf_size = 0;
     if (__wasi_args_sizes_get(&argc, &buf_size) != 0 || argc < 2) {
         exit(70);

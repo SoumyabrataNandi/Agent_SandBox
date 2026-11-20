@@ -34,11 +34,16 @@ static const char PRELOAD[] =
     "import json, re, collections, datetime, csv, math, statistics, decimal, fractions\n"
     "import functools, itertools, operator, string, textwrap, typing, dataclasses, enum\n"
     "import base64, hashlib, random, struct, io, pathlib\n"
-    "import socket, http.client, urllib.request, urllib.parse, email.message\n"
     "sys.path.append('/usr/local/lib/sandboxd')\n"
     "import sandbox_net\n"
-    "for _name in ('socket', 'http.client', 'urllib.request'):\n"
-    "    sandbox_net._install(_name, sys.modules[_name])\n"
+    /* Order matters, as with the lazy hook in sandboxd_boot: http.client must be patched (it gains
+     * HTTPSConnection) BEFORE urllib.request is imported, because urllib.request decides at import
+     * time whether to define HTTPSHandler. */
+    "import socket, http.client\n"
+    "sandbox_net._install('socket', socket)\n"
+    "sandbox_net._install('http.client', http.client)\n"
+    "import urllib.request, urllib.parse, email.message\n"
+    "sandbox_net._install('urllib.request', urllib.request)\n"
     /* Everything loaded so far lives for the whole run: move it to the permanent generation so
      * the cyclic GC never re-scans the ~30 MB of preloaded objects during a run. */
     "import gc\n"

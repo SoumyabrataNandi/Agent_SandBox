@@ -453,3 +453,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Q1–Q5 = A. Cross-checked pins: wasi-sdk 33 and wasmtime 50.0.2 equal GitHub's published asset digests; CPython 3.15.2 equals python.org's published sha256; QuickJS is a GitHub tag archive without an upstream digest (pinned from CI, documented). Release mode for all builds; sandboxd-step compiled out unless SANDBOXD_SPIKE; spike job exports go + source hash; new `release` job (push + go only) publishes `interp-<hash>` (prerelease) with SHA256SUMS and provenance attestations.
 
 ---
+
+## C3-U3: first integration findings (2026-11-20)
+**Timestamp**: 2026-11-20
+**User Input**: (session resumed with "continue")
+**AI Response**: Release interp-f940919f383c1ce8 published (spike go in release mode) and pinned locally. Runtime snapshot integration built; snapshot tests pass (12 Python + 5 JS programs identical on both paths; no state carried between runs; per-language floors python 40 MiB, js 1.3 MiB equal what the upstream interpreters need; Windows: no CoW image, Python 26.9M vs 58.1M fuel). Full suites on the snapshot path found two interpreter bugs: (1) Python preload imported urllib.request before http.client was patched, so HTTPSHandler was never defined (NameError in build_opener); (2) QuickJS sandboxd-run never re-initialised `environ` after init reset it, so std.getenviron() crashed (E-ENV). Fixed both in the C entry points; added environ checks to the spike and parity tests. Pushing interpreter fixes alone to publish a corrected release before pinning.
+
+---
