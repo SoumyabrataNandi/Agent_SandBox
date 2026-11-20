@@ -47,12 +47,16 @@ jobs:
         run: |
           set -o pipefail
           cargo test --workspace --locked --exclude sandboxd-escape-suite -- --test-threads=4 2>&1 | tee test.log
+      - name: name the test log after the OS
+        if: failure()
+        shell: bash
+        run: '[ -f test.log ] && cp test.log "test-${{ matrix.os }}.log" || true'
       - name: keep the test log (failures only)
         if: failure()
         uses: actions/upload-artifact@v6
         with:
           name: test-log-${{ matrix.os }}
-          path: test.log
+          path: test-${{ matrix.os }}.log
           if-no-files-found: ignore
       - name: smoke
         run: cargo run --locked -p sandboxd -- version
@@ -85,12 +89,12 @@ jobs:
           fi
           dest="/tmp/ci-results/ci/${GITHUB_SHA}"
           mkdir -p "$dest"
-          for d in logs/test-log-*; do
-            [ -f "$d/test.log" ] || continue
-            os="${d#logs/test-log-}"
+          # One matching artifact is extracted straight into logs/, several into logs/<name>/.
+          find logs -name 'test-*.log' -print0 | while IFS= read -r -d '' f; do
+            os="$(basename "$f" .log)"; os="${os#test-}"
             # The failures section plus the tail: enough to diagnose, small enough to keep.
-            { grep -A80 -E '^---- ' "$d/test.log" | head -2000 || true
-              echo '=== tail ==='; tail -n 400 "$d/test.log"; } > "$dest/$os.log"
+            { grep -A80 -E '^---- ' "$f" | head -2000 || true
+              echo '=== tail ==='; tail -n 400 "$f"; } > "$dest/$os.log"
           done
           cd /tmp/ci-results
           git add ci

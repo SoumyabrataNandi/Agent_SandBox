@@ -268,8 +268,20 @@ async fn http_session_caps_and_errors() {
     let a2 = a.clone();
     let id2 = id.clone();
     let slow =
-        tokio::spawn(async move { run(&a2, &id2, "import time\ntime.sleep(0.6)", ALICE).await });
-    tokio::time::sleep(Duration::from_millis(200)).await;
+        tokio::spawn(async move { run(&a2, &id2, "import time\ntime.sleep(1.5)", ALICE).await });
+    // Wait until the first call holds the session (a fixed head start races on a loaded runner).
+    let t = std::time::Instant::now();
+    loop {
+        let (_, v) = send(&a, req("GET", &format!("/v1/sessions/{id}"), None, ALICE)).await;
+        if v["state"] == "busy" {
+            break;
+        }
+        assert!(
+            t.elapsed() < Duration::from_secs(10),
+            "first call never started: {v}"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
     let (s, v) = run(&a, &id, "print(1)", ALICE).await;
     assert_eq!(
         (s, v["error"]["code"].as_str()),

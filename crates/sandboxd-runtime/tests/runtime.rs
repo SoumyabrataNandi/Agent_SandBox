@@ -113,8 +113,10 @@ async fn ac2_wall_clock_busy_loop() {
     let el = t.elapsed();
     assert_eq!(r.outcome, Outcome::Limit);
     assert_eq!(r.limits_hit, vec![LimitKind::WallClock]);
+    // End to end includes instance setup, which a loaded CI runner can slow down (this bound
+    // flaked at +300 ms); the enforcement itself is checked strictly through `run_ms` below.
     assert!(
-        el < Duration::from_millis(2200) + Duration::from_millis(300),
+        el < Duration::from_millis(2200) + Duration::from_millis(1500),
         "took {el:?} (setup included)"
     );
     assert!(r.timings.run_ms <= 2200, "run took {}ms", r.timings.run_ms);

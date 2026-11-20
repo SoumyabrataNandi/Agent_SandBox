@@ -273,8 +273,16 @@ async fn one_call_at_a_time_and_max_calls() {
     let b = snap();
     let s = open(b, Language::Python, "max_calls = 2").await;
     let s2 = s.clone();
-    let slow = tokio::spawn(async move { call(&s2, "import time\ntime.sleep(0.5)").await });
-    tokio::time::sleep(Duration::from_millis(150)).await;
+    let slow = tokio::spawn(async move { call(&s2, "import time\ntime.sleep(1.5)").await });
+    // Wait until the first call holds the session (a fixed head start races on a loaded runner).
+    let t = Instant::now();
+    while !s.info().busy {
+        assert!(
+            t.elapsed() < Duration::from_secs(10),
+            "first call never started"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
     assert_eq!(
         s.call(CallRequest::new("print(1)"), None).await.err(),
         Some(SessionError::Busy)
