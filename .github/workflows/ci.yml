@@ -43,9 +43,59 @@ jobs:
       - name: clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: unit + integration tests
-        run: cargo test --workspace --locked --exclude sandboxd-escape-suite -- --test-threads=4
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace --locked --exclude sandboxd-escape-suite -- --test-threads=4 2>&1 | tee test.log
+      - name: keep the test log (failures only)
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-log-${{ matrix.os }}
+          path: test.log
+          if-no-files-found: ignore
       - name: smoke
         run: cargo run --locked -p sandboxd -- version
+
+  # ADR-C3-5: failing test output goes to the `ci-results` branch (`ci/<sha>/<os>.log`) so it can be
+  # read with `git fetch`, without the GitHub UI. Pushes to main only; the test jobs stay read-only.
+  failure-report:
+    name: publish test failures
+    needs: test
+    if: failure() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only to push the logs to the ci-results branch
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: test-log-*
+          path: logs
+      - name: Publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin ci-results:ci-results 2>/dev/null; then
+            git worktree add /tmp/ci-results ci-results
+          else
+            git worktree add --orphan -b ci-results /tmp/ci-results
+          fi
+          dest="/tmp/ci-results/ci/${GITHUB_SHA}"
+          mkdir -p "$dest"
+          for d in logs/test-log-*; do
+            [ -f "$d/test.log" ] || continue
+            os="${d#logs/test-log-}"
+            # The failures section plus the tail: enough to diagnose, small enough to keep.
+            { grep -A80 -E '^---- ' "$d/test.log" | head -2000 || true
+              echo '=== tail ==='; tail -n 400 "$d/test.log"; } > "$dest/$os.log"
+          done
+          cd /tmp/ci-results
+          git add ci
+          git commit -m "ci test failures ${GITHUB_SHA} (run ${GITHUB_RUN_ID})" || exit 0
+          git push origin ci-results
 
   # Release-blocking (NFR-4, AC 10): adversarial isolation tests on every OS.
   escape-suite:

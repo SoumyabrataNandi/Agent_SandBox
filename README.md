@@ -47,6 +47,11 @@ curl -H "Authorization: Bearer $TOKEN" -d '{"language":"python","code":"print(6*
 - ✅ Network access **when a policy grants it**: `urllib`, `http.client`, `socket.create_connection` and `fetch` work unchanged, through an allowlisting broker. See [docs/NETWORK.md](docs/NETWORK.md).
 - ❌ `pip install` and non-blocking/async sockets.
 
+## Benchmarks
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md) compares sandboxd with `docker run`, `docker exec` and gVisor
+on a GitHub-hosted Linux runner: latency, throughput, memory and session calls. It is generated
+from the `bench` workflow's results (`scripts/bench/`), never edited by hand.
+
 ## Security testing
 `tests/escape-suite` is an adversarial, release-blocking suite: traversal, symlinks, env reads,
 CPU/memory/output bombs, subprocess/socket attempts, policy widening, auth bypass and input abuse,

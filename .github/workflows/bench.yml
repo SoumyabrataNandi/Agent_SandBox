@@ -1,0 +1,133 @@
+name: bench
+# Benchmarks against Docker and gVisor (cycle 3, C3-U5; FR-B1, ADR-C3-6). Started by hand from the
+# Actions tab. Results go to the job summary, a build artifact and the orphan `ci-results` branch
+# (`bench/<sha>.json`, `bench/latest.json`). docs/BENCHMARKS.md is generated from that file with
+# `scripts/bench/render.py`; numbers are never edited by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: "Latency samples per scenario"
+        required: false
+        default: "200"
+      gvisor:
+        description: "Install gVisor (runsc) as a comparator"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: write # only to push the results to the ci-results branch
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Harness self-test
+        run: python -I -m unittest discover -s scripts/bench -p "test_*.py"
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/cache@v5
+        with:
+          path: assets/vendor
+          key: assets-${{ hashFiles('assets/manifest.toml') }}
+      - run: python scripts/fetch-assets.py
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench
+      - name: Build the release binary
+        run: cargo build --release --locked -p sandboxd
+
+      - name: Pull comparator images
+        run: |
+          docker pull python:3.15-slim
+          docker pull node:22-slim
+
+      # Optional comparator (B1.2: "if installable on the runner"). The binary is checked against the
+      # SHA-512 published next to it. The harness records the version and skips gVisor if this fails.
+      - name: Install gVisor
+        if: ${{ inputs.gvisor }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          url="https://storage.googleapis.com/gvisor/releases/release/latest/$(uname -m)"
+          cd "$RUNNER_TEMP"
+          wget -q "$url/runsc" "$url/runsc.sha512"
+          sha512sum -c runsc.sha512
+          sudo install -m 0755 runsc /usr/local/bin/runsc
+          sudo /usr/local/bin/runsc install
+          sudo systemctl restart docker
+          docker run --rm --runtime runsc python:3.15-slim python -c "print('gVisor ok')"
+
+      - name: Host
+        run: |
+          nproc; free -h; uname -a; docker version --format '{{.Server.Version}}'
+          lscpu | head -20
+
+      - name: Run benchmarks
+        env:
+          ITERATIONS: ${{ inputs.iterations }}
+        run: |
+          set -o pipefail
+          python -I scripts/bench/run.py \
+            --sandboxd target/release/sandboxd \
+            --workdir "$RUNNER_TEMP/bench" \
+            --iterations "$ITERATIONS" \
+            --out bench-results.json 2>&1 | tee bench.log
+
+      - name: Render
+        if: always()
+        shell: bash
+        run: |
+          if [ -f bench-results.json ]; then
+            python -I scripts/bench/render.py bench-results.json > BENCHMARKS.md
+            cat BENCHMARKS.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No results file: see bench.log in the artifact." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: bench-${{ github.sha }}
+          path: |
+            bench-results.json
+            BENCHMARKS.md
+            bench.log
+            ${{ runner.temp }}/bench/server-*.log
+          if-no-files-found: warn
+
+      - name: Publish results to the ci-results branch
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -f bench-results.json ] || { echo "no results to publish"; exit 0; }
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin ci-results:ci-results 2>/dev/null; then
+            git worktree add /tmp/ci-results ci-results
+          else
+            git worktree add --orphan -b ci-results /tmp/ci-results
+          fi
+          mkdir -p /tmp/ci-results/bench
+          cp bench-results.json "/tmp/ci-results/bench/${GITHUB_SHA}.json"
+          cp bench-results.json /tmp/ci-results/bench/latest.json
+          [ -f bench.log ] && tail -n 400 bench.log > /tmp/ci-results/bench/latest.log
+          cd /tmp/ci-results
+          git add bench
+          git commit -m "bench results ${GITHUB_SHA} (run ${GITHUB_RUN_ID})"
+          git push origin ci-results

@@ -502,3 +502,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **Timestamp**: 2026-11-20
 **User Input**: (follows "approve")
 **AI Response**: Tests found and fixed three defects: (1) output buffers cleared before being read; (2) stale fuel in hot loops, so the per-call CPU budget never fired (fixed with fuel_async_yield_interval 10M); (3) a forged reply let the next call's budget arm early (budgets now arm only when the device delivers the frame; idle guard otherwise). Results: runtime session 12/12, server sessions 4/4, all other workspace suites green incl. escape 17 + E-NET 11; clippy clean. One one-shot timing assertion (ac2_wall_clock_busy_loop, end-to-end < 2.5 s) missed under full-workspace parallel load and passed on its own. Wrote code-summary.md; committing C3-U4.
+
+---
+
+## C3-U5 benchmarks (combined design + code gate)
+**Timestamp**: 2026-11-20
+**User Input**: "continue"
+**AI Response**: CI for b6ce2e9 (C3-U4): test jobs failed on ubuntu-latest and ubuntu-24.04-arm (exit 101), passed on Windows and macOS; b98d676 had passed on Linux. Logs need a GitHub login and no Linux toolchain is available locally, so the user was asked for the failing test output. Built C3-U5: scripts/bench/run.py (stdlib harness: sandboxd HTTP snapshots on/off, CLI, docker run/exec, gVisor if installable; latency, throughput, memory, session calls; outputs checked), render.py (docs/BENCHMARKS.md + NFR-P1 verdicts), test_bench.py (7/7), .github/workflows/bench.yml (workflow_dispatch → summary, artifact, ci-results bench/<sha>.json), placeholder docs/BENCHMARKS.md, README link. Local end-to-end check with the debug binary (Docker off): all sandboxd scenarios 0 errors. Awaiting approval and a bench run.
