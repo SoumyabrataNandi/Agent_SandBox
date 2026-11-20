@@ -294,16 +294,11 @@ __attribute__((export_name("sandboxd-session"))) void sandboxd_session(void) {
     apply_argv();
     apply_environ();
     run_private(PER_RUN, "per-run setup failed");
-    run_private("import sys
-"
-                "if '/usr/local/lib/sandboxd' not in sys.path:
-"
-                "    sys.path.append('/usr/local/lib/sandboxd')
-"
-                "import sandboxd_session
-"
-                "sandboxd_session.main(preloaded=True)
-",
+    run_private("import sys\n"
+                "if '/usr/local/lib/sandboxd' not in sys.path:\n"
+                "    sys.path.append('/usr/local/lib/sandboxd')\n"
+                "import sandboxd_session\n"
+                "sandboxd_session.main(preloaded=True)\n",
                 "session loop");
     _Exit(finish(0));
 }
