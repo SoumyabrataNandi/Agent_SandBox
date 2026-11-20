@@ -467,3 +467,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **AI Response**: Corrected release interp-ef9ab1d314d38dc0 (spike go: Python 14.5x, JS 2.5x, compat incl. environ) pinned. All suites pass on the snapshot path: workspace (runtime 20, network 14, pool 6, snapshot 5, server, CLI, VFS, broker, audit, policy) and escape 17 + E-NET 11. Windows release perf: Python print(1) 31 ms (was 102–153), import-heavy 27 ms (was 167–299), JS 12 ms; no CoW on Windows (26.9M fuel). Summary: cycle-3/construction/c3-u3-snapshots/code-summary.md. Awaiting approval.
 
 ---
+
+## C3-U3 approved
+**Timestamp**: 2026-11-20
+**User Input**: "approve"
+**AI Response**: C3-U3 marked approved. Commit b849cc8 not yet on GitHub (push hangs: likely a Git Credential Manager sign-in prompt). Starting C3-U4 sessions design.
+
+---
