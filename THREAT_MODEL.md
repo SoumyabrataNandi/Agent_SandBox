@@ -60,7 +60,7 @@ Linux x64/arm64, macOS and Windows) or to unit/integration tests in the named cr
 ## Residual risks (accepted / owned)
 | ID | Risk | Owner / plan |
 |---|---|---|
-| R1 | A bug in wasmtime, wasmtime-wasi or cap-std breaks isolation | Pin and track advisories (cargo-audit in CI); upgrade promptly; the interposer is a second layer for paths |
+| R1 | A bug in wasmtime, wasmtime-wasi or cap-std breaks isolation | Pin and track advisories (cargo-deny + cargo-audit in CI); upgrade promptly; the interposer is a second layer for paths. **Example:** RUSTSEC-2026-0587 (GHSA-f2pq-268w-886c, 2026-11-19), a WASI filesystem escape on Windows through a drive-prefixed path component, was flagged by CI the day after publication and fixed by upgrading to wasmtime 50.0.3. The interposer already refuses Windows and drive-letter paths (E-FS-1). The wasmtime CLI 50.0.2 pinned in `interpreters/sources.toml` runs only in the Linux interpreter build and is unaffected |
 | R2 | Spectre-class / timing side channels between concurrent runs | Out of scope for this tier; run separate deployments per tenant if needed |
 | R3 | A local attacker who can write the cache dir and recompute the sidecar hash could plant a malicious `.cwasm` | The cache dir is user-only (0700 on Unix); operators must not share it. Future: sign cache entries with a per-install key |
 | R4 | Read-write operator mounts let guests modify host data (by design) and are not size-limited | Flagged by `policy check` warnings; operator responsibility |

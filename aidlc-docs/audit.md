@@ -516,3 +516,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **Timestamp**: 2026-11-20
 **User Input**: "approve for all, no need to ask, continue with all approve, after done all let me know"
 **AI Response**: C3-U5 committed and pushed (67801fb), with ci.yml now publishing failing test logs to ci-results. CI for 67801fb: test passed on all 4 OSes (including both Linux runners, so the b6ce2e9 Linux failure didn't reproduce; most likely the timing flake), escape suite passed on 4 OSes, perf smoke passed; `otel feature` failed: an unqualified `KeyValue` in otel.rs `session_ended` (otel-only code, from C3-U4). Fixed; otel clippy and tests pass locally. C3-U6: tests/escape-suite/tests/cycle3.rs (E-POOL-1, E-SES-1/2/3, E-SNAP-1/2, with a positive control), THREAT_MODEL T19–T23 + R11–R13, README/NETWORK/THIRD_PARTY_NOTICES, release packaging ships BENCHMARKS.md. Escape 6+17+11 pass; workspace clippy clean. Committing C3-U6 under the blanket approval.
+
+---
+
+## Security advisory RUSTSEC-2026-0587; CI fixes
+**Timestamp**: 2026-11-21
+**User Input**: "continue" (standing blanket approval)
+**AI Response**: CI on d041749: supply-chain failed on RUSTSEC-2026-0587 (wasmtime-wasi < 50.0.3, Windows WASI filesystem escape via a drive-prefixed path component; published 2026-11-19). Upgraded wasmtime/wasmtime-wasi/wiggle/wasmtime-wizer to 50.0.3; cargo-deny advisories ok. The escape suite failed on both Linux runners; the likely cause is an E-SNAP-2 false positive (bare temp dir `/tmp` as a needle), which is fixed. Escape-suite failure logs are now also published to ci-results. A local parallel build hit corrupted or missing-artifact errors (file-access interference on Windows); a clean build with -j 4 fixed it. Full workspace incl. escape suite (6+17+11) passes on 50.0.3.

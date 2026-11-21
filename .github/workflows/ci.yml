@@ -65,7 +65,7 @@ jobs:
   # read with `git fetch`, without the GitHub UI. Pushes to main only; the test jobs stay read-only.
   failure-report:
     name: publish test failures
-    needs: test
+    needs: [test, escape-suite]
     if: failure() && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -123,7 +123,17 @@ jobs:
       - run: python scripts/fetch-assets.py
       - uses: Swatinem/rust-cache@v2
       - name: escape suite
-        run: cargo test --locked -p sandboxd-escape-suite -- --test-threads=4
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --locked -p sandboxd-escape-suite -- --test-threads=4 2>&1 | tee "test-escape-${{ matrix.os }}.log"
+      - name: keep the escape-suite log (failures only)
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-log-escape-${{ matrix.os }}
+          path: test-escape-${{ matrix.os }}.log
+          if-no-files-found: ignore
 
   # FR-O1: the optional `otel` feature builds, lints and exports to a local collector stub; the
   # default build must not contain any OpenTelemetry crate.

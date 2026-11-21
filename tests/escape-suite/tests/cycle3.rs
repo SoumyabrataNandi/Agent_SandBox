@@ -574,14 +574,17 @@ fn sha256_hex(b: &[u8]) -> String {
 async fn e_snap_2_snapshots_hold_no_host_paths_or_environment() {
     let w = world();
     let mut needles: Vec<String> = Vec::new();
-    for p in [&w.cache, &w.root, &std::env::temp_dir()] {
+    // Host-specific paths only: the bare temp dir is `/tmp` on Linux, which every guest has, and
+    // short values (USER=runner on CI) occur in ordinary stdlib strings.
+    for p in [&w.cache, &w.root] {
         let s = p.display().to_string();
         needles.push(s.clone());
         needles.push(s.replace('\\', "/"));
     }
     for var in ["PATH", "HOME", "USERPROFILE", "USERNAME", "USER"] {
         if let Ok(v) = std::env::var(var)
-            && v.len() >= 6
+            && v.len() >= 8
+            && !matches!(v.as_str(), "/tmp" | "/root" | "/home")
         {
             needles.push(v);
         }

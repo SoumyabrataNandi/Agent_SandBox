@@ -31,6 +31,10 @@ The world runs with snapshots **forced on** and pooling on, so a fallback can't 
 - **`otel` feature build (CI failure on 67801fb):** `session_ended` used `KeyValue` unqualified, outside the module's otel-only import. The default build doesn't compile that block, so local checks missed it. Fixed by qualifying `opentelemetry::KeyValue`. Checked with the CI's otel clippy and test commands.
 - **C3-U4 Linux test failure (b6ce2e9):** didn't reproduce. The next push (67801fb) passed `test` on ubuntu-latest and ubuntu-24.04-arm and the escape suite on all 4 OSes. Most likely the timing-bound flake noted in the C3-U4 commit. CI now publishes failing test output to `ci-results` (`ci/<sha>/<os>.log`), so the next failure can be diagnosed without the GitHub UI.
 
+- **Security advisory RUSTSEC-2026-0587** (wasmtime-wasi < 50.0.3, Windows: WASI filesystem sandbox escape through a drive-prefixed path component; published 2026-11-19, caught by the supply-chain job on d041749): upgraded wasmtime, wasmtime-wasi, wiggle and wasmtime-wizer to **50.0.3** (workspace minimum raised). cargo-deny advisories now pass. Our interposer already refuses `C:\…` and `\?\…` paths (E-FS-1), a second layer. The wasmtime CLI 50.0.2 in `interpreters/sources.toml` is only used in the Linux CI interpreter build (not affected); bumping it would force a new interpreter release, so it is left as is.
+- **E-SNAP-2 false positive on Linux:** the bare temp dir is `/tmp` there, which every guest contains; the needles are now only host-specific paths, and env values of at least 8 characters.
+- **CI failure logs** now also cover the escape suite (`ci/<sha>/escape-<os>.log`).
+
 ## Verification
 - Escape suite: cycle3 6/6, escape 17/17, E-NET 11/11 (Windows, debug).
 - `cargo clippy --workspace --all-targets -D warnings` clean; otel clippy + otel tests: see audit log.

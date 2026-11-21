@@ -40,9 +40,9 @@ uuid = { version = "1.29", features = ["v4", "v7", "serde"] }
 regex = "1.13"
 thiserror = "2"
 proptest = "1"
-wasmtime = { version = "50.0.2", default-features = false, features = ["runtime", "cranelift", "async", "std", "parallel-compilation", "pooling-allocator", "call-hook"] }
-wasmtime-wasi = { version = "50.0.2", default-features = false, features = ["p1"] }
-wiggle = { version = "50.0.2", default-features = false }
+wasmtime = { version = "50.0.3", default-features = false, features = ["runtime", "cranelift", "async", "std", "parallel-compilation", "pooling-allocator", "call-hook"] }
+wasmtime-wasi = { version = "50.0.3", default-features = false, features = ["p1"] }
+wiggle = { version = "50.0.3", default-features = false }
 zip = { version = "9.7", default-features = false, features = ["deflate"] }
 tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "time", "sync", "io-util", "net"] }
 bytes = "1"
@@ -63,7 +63,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 url = "2.5"
 rcgen = "0.14"
 # Snapshots (cycle 3, ADR-C3-2): must match the wasmtime version exactly.
-wasmtime-wizer = { version = "=50.0.2", features = ["wasmtime"] }
+wasmtime-wizer = { version = "=50.0.3", features = ["wasmtime"] }
 # OTLP export (cycle 2, C2-U4): only behind sandboxd-server's `otel` feature. The OTLP HTTP client
 # is reqwest 0.13 (blocking), i.e. the same HTTP/TLS stack as the network broker.
 opentelemetry = { version = "0.33", default-features = false, features = ["metrics", "trace"] }
