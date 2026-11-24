@@ -60,6 +60,15 @@ jobs:
           if-no-files-found: ignore
       - name: smoke
         run: cargo run --locked -p sandboxd -- version
+      # FR-PL1 (cycle 4): drive `sandboxd mcp` over stdio the way an agent does. Cold cache, so the
+      # first `initialize` also measures first-start cost.
+      - name: MCP pilot
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          set -o pipefail
+          python -I scripts/pilot/mcp_pilot.py --sandboxd target/debug/sandboxd --json pilot.json | tee pilot.txt
+          { echo '### MCP pilot (${{ matrix.os }})'; echo '```'; cat pilot.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
   # ADR-C3-5: failing test output goes to the `ci-results` branch (`ci/<sha>/<os>.log`) so it can be
   # read with `git fetch`, without the GitHub UI. Pushes to main only; the test jobs stay read-only.
