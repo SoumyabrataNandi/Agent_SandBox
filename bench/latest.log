@@ -1,0 +1,36 @@
+[bench 05:46:47] starting sandboxd-http
+[bench 05:47:08] {"system": "sandboxd-http", "scenario": "hello-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 3.252, "p95_ms": 3.756, "p99_ms": 6.291, "mean_ms": 3.374, "min_ms": 2.966, "max_ms": 11.259}
+[bench 05:47:08] {"system": "sandboxd-http", "scenario": "hello-js", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 0.878, "p95_ms": 0.996, "p99_ms": 1.093, "mean_ms": 0.902, "min_ms": 0.811, "max_ms": 2.286}
+[bench 05:48:04] {"system": "sandboxd-http", "scenario": "csv-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 258.575, "p95_ms": 294.468, "p99_ms": 308.678, "mean_ms": 264.604, "min_ms": 249.827, "max_ms": 349.559}
+[bench 05:48:04] {"system": "sandboxd-http", "scenario": "session-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 0.787, "p95_ms": 1.588, "p99_ms": 4.133, "mean_ms": 0.933, "min_ms": 0.667, "max_ms": 5.315}
+[bench 05:48:04] {"system": "sandboxd-http", "scenario": "session-js", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 0.575, "p95_ms": 0.772, "p99_ms": 2.672, "mean_ms": 0.642, "min_ms": 0.509, "max_ms": 4.397}
+[bench 05:48:05] {"system": "sandboxd-http", "scenario": "hello-py", "metric": "throughput", "concurrency": 1, "runs": 200, "errors": 0, "seconds": 0.671, "runs_per_s": 298.06}
+[bench 05:48:05] {"system": "sandboxd-http", "scenario": "hello-py", "metric": "throughput", "concurrency": 4, "runs": 200, "errors": 0, "seconds": 0.28, "runs_per_s": 714.21}
+[bench 05:48:05] {"system": "sandboxd-http", "scenario": "hello-py", "metric": "throughput", "concurrency": 16, "runs": 200, "errors": 0, "seconds": 0.226, "runs_per_s": 884.52}
+[bench 05:48:07] {"system": "sandboxd-http", "scenario": "idle-session-py", "metric": "memory", "count": 8, "per_sandbox_mib": 5.35, "baseline_mib": 498.0, "method": "server RSS delta with N idle Python sessions"}
+[bench 05:48:11] {"system": "sandboxd-http", "scenario": "live-run-py", "metric": "memory", "count": 8, "errors": 0, "per_sandbox_mib": 3.72, "baseline_mib": 498.1, "method": "peak server RSS delta with N concurrent sleeping Python runs"}
+[bench 05:48:11] starting sandboxd-http-nosnap
+[bench 05:48:20] {"system": "sandboxd-http-nosnap", "scenario": "hello-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 38.304, "p95_ms": 44.898, "p99_ms": 55.285, "mean_ms": 39.186, "min_ms": 35.6, "max_ms": 76.789}
+[bench 05:48:20] {"system": "sandboxd-http-nosnap", "scenario": "hello-js", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 1.715, "p95_ms": 1.839, "p99_ms": 1.999, "mean_ms": 1.728, "min_ms": 1.603, "max_ms": 2.245}
+[bench 05:49:33] {"system": "sandboxd-http-nosnap", "scenario": "csv-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 339.412, "p95_ms": 395.472, "p99_ms": 425.139, "mean_ms": 345.858, "min_ms": 319.139, "max_ms": 489.869}
+[bench 05:49:42] {"system": "sandboxd-http-nosnap", "scenario": "hello-py", "metric": "throughput", "concurrency": 1, "runs": 200, "errors": 0, "seconds": 8.911, "runs_per_s": 22.44}
+[bench 05:49:44] {"system": "sandboxd-http-nosnap", "scenario": "hello-py", "metric": "throughput", "concurrency": 4, "runs": 200, "errors": 0, "seconds": 2.552, "runs_per_s": 78.38}
+[bench 05:49:47] {"system": "sandboxd-http-nosnap", "scenario": "hello-py", "metric": "throughput", "concurrency": 16, "runs": 200, "errors": 0, "seconds": 2.165, "runs_per_s": 92.37}
+[bench 05:50:05] {"system": "sandboxd-cli", "scenario": "hello-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 86.339, "p95_ms": 95.769, "p99_ms": 105.477, "mean_ms": 87.19, "min_ms": 81.484, "max_ms": 109.492}
+[bench 05:50:23] {"system": "sandboxd-cli", "scenario": "hello-js", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 83.388, "p95_ms": 95.872, "p99_ms": 99.809, "mean_ms": 85.457, "min_ms": 79.549, "max_ms": 105.203}
+[bench 05:51:36] {"system": "sandboxd-cli", "scenario": "csv-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 339.82, "p95_ms": 390.38, "p99_ms": 405.5, "mean_ms": 348.091, "min_ms": 325.534, "max_ms": 420.841}
+[bench 05:52:18] {"system": "docker-run", "scenario": "hello-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 195.146, "p95_ms": 217.51, "p99_ms": 235.903, "mean_ms": 197.329, "min_ms": 179.172, "max_ms": 269.657}
+[bench 05:53:01] {"system": "docker-run", "scenario": "hello-js", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 205.222, "p95_ms": 236.006, "p99_ms": 250.533, "mean_ms": 208.133, "min_ms": 186.056, "max_ms": 258.766}
+[bench 05:54:19] {"system": "docker-run", "scenario": "csv-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 360.722, "p95_ms": 424.792, "p99_ms": 455.842, "mean_ms": 370.06, "min_ms": 340.037, "max_ms": 488.623}
+[bench 05:55:01] {"system": "docker-run", "scenario": "hello-py", "metric": "throughput", "concurrency": 1, "runs": 200, "errors": 0, "seconds": 41.452, "runs_per_s": 4.82}
+[bench 05:55:17] {"system": "docker-run", "scenario": "hello-py", "metric": "throughput", "concurrency": 4, "runs": 200, "errors": 0, "seconds": 16.282, "runs_per_s": 12.28}
+[bench 05:55:33] {"system": "docker-run", "scenario": "hello-py", "metric": "throughput", "concurrency": 16, "runs": 200, "errors": 0, "seconds": 14.574, "runs_per_s": 13.72}
+[bench 05:55:48] {"system": "docker-exec", "scenario": "hello-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 69.971, "p95_ms": 84.787, "p99_ms": 94.855, "mean_ms": 71.772, "min_ms": 63.845, "max_ms": 107.601}
+[bench 05:56:07] {"system": "docker-exec", "scenario": "hello-js", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 85.232, "p95_ms": 103.882, "p99_ms": 109.734, "mean_ms": 88.03, "min_ms": 78.723, "max_ms": 128.635}
+[bench 05:56:39] {"system": "docker-exec", "scenario": "csv-py", "metric": "latency", "errors": 0, "n": 200, "p50_ms": 151.395, "p95_ms": 175.043, "p99_ms": 183.062, "mean_ms": 155.519, "min_ms": 144.851, "max_ms": 187.726}
+[bench 05:56:53] {"system": "docker-exec", "scenario": "hello-py", "metric": "throughput", "concurrency": 1, "runs": 200, "errors": 0, "seconds": 13.551, "runs_per_s": 14.76}
+[bench 05:56:59] {"system": "docker-exec", "scenario": "hello-py", "metric": "throughput", "concurrency": 4, "runs": 200, "errors": 0, "seconds": 5.948, "runs_per_s": 33.62}
+[bench 05:57:06] {"system": "docker-exec", "scenario": "hello-py", "metric": "throughput", "concurrency": 16, "runs": 200, "errors": 0, "seconds": 5.888, "runs_per_s": 33.97}
+[bench 05:57:12] {"system": "docker-run", "scenario": "idle-session-py", "metric": "memory", "count": 8, "per_sandbox_mib": 4.64, "method": "docker stats (container cgroup memory) of N idle Python containers"}
+[bench 05:57:12] skip gvisor-run / gvisor-exec: runsc runtime not registered with docker
+[bench 05:57:12] results written to bench-results.json
