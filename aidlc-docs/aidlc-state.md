@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: Cycle 4 — CONSTRUCTION
-- **Current Stage**: Cycle 4 (ship and pilot): C4-U1–U3 done; next C4-U4 release v0.1.0
+- **Current Stage**: Cycle 4 (ship and pilot): Cycle 4 complete: v0.1.0 tagged, draft release created (run 45398159049); owner publishes the draft
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -123,8 +123,8 @@
 - [x] Workflow Planning — approved 2026-11-24
 - [ ] Application Design — SKIP (no new components)
 - [x] Units Generation — light (in execution-plan.md)
-- [ ] Construction (per unit)
-- [ ] Build and Test
+- [x] Construction (per unit) — C4-U1..U4 done 2026-11-24
+- [x] Build and Test — CI green at d4fe4f5; release run green
 
 ## Cycle 4 Construction Progress
 | Unit | Status |
@@ -132,4 +132,4 @@
 | C4-U1 Supply-chain automation + SECURITY.md | Done (dependabot, security.yml, SECURITY.md) |
 | C4-U2 MCP pilot + fixes | Done (pilot 10/10 local; CI job on Linux + Windows; F1 cold start → docs) |
 | C4-U3 Getting started, changelog, release packaging | Done |
-| C4-U4 Release v0.1.0 | Pending |
+| C4-U4 Release v0.1.0 | Done (tag v0.1.0 → d4fe4f5; 5 targets + draft; owner publishes) |

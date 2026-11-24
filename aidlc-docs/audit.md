@@ -544,3 +544,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **Timestamp**: 2026-11-24
 **User Input**: "ok then start cycle 4 all ar eapproved from my end and select all default values"
 **AI Response**: Cycle 4 = ship and pilot (no new sandbox features). Questions Q1–Q7 written with recommended answers (all A, per the user): supply-chain automation (Dependabot + daily security workflow that opens/closes one issue and writes security/latest.json to ci-results), SECURITY.md, an MCP pilot harness in CI (Linux + Windows), getting-started guide + changelog, v0.1.0 tag → draft release (user publishes), no container image. Requirements, execution plan and units (C4-U1..U4) written. C4-U1 built: .github/dependabot.yml (wasmtime crates excluded; upgraded by hand), .github/workflows/security.yml, SECURITY.md. Owner action: enable private vulnerability reporting in repo settings.
+
+---
+
+## Dependabot PRs; C4-U4 release v0.1.0
+**Timestamp**: 2026-11-24
+**User Input**: "we got 3 PR, if needed marge them"; later "continue"
+**AI Response**: C4-U2 (MCP pilot, 10/10; finding F1 first-start blocks initialize → `cache warm` in the docs; F2 isError kept by design) and C4-U3 (GETTING_STARTED, CHANGELOG, release notes from CHANGELOG) were pushed; CI green at 809e13e with the pilot on Linux and Windows. Dependabot PRs #2 (toml/zip/clap), #3 (sha2 0.11) and #1 (actions majors) were merged after their CI passed, and the workspace compiles locally. A git push needed a fresh GitHub sign-in (Git Credential Manager), which the user completed. CI on main d4fe4f5 is green. Tagged v0.1.0; release run 45398159049 is green on all 5 targets with the escape suite on each; a draft release was created. Owner actions: publish the draft; enable private vulnerability reporting.
