@@ -43,21 +43,27 @@ fn sandbox() -> &'static Sandbox {
 }
 
 /// `default` (sessions off), `notebook` (sessions on, 2 per policy) and `short` (1 s idle TTL).
+/// The files are written once per process: tests run in parallel, and rewriting them while another
+/// test loads them lets it read a truncated (empty) file.
 fn policies() -> PolicyDir {
-    let dir =
-        std::env::temp_dir().join(format!("sandboxd-session-policies-{}", std::process::id()));
-    let _ = std::fs::create_dir_all(&dir);
-    std::fs::write(
-        dir.join("notebook.toml"),
-        "version = 1\nname = \"notebook\"\n[limits]\nwall_clock = \"5s\"\n[session]\nenabled = true\nmax_sessions = 2\n",
-    )
-    .expect("write");
-    std::fs::write(
-        dir.join("short.toml"),
-        "version = 1\nname = \"short\"\n[session]\nenabled = true\nidle_ttl = \"1s\"\n",
-    )
-    .expect("write");
-    PolicyDir::load(&dir, &LoadOptions::default()).expect("policies")
+    static DIR: OnceLock<std::path::PathBuf> = OnceLock::new();
+    let dir = DIR.get_or_init(|| {
+        let dir = std::env::temp_dir()
+            .join(format!("sandboxd-session-policies-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(
+            dir.join("notebook.toml"),
+            "version = 1\nname = \"notebook\"\n[limits]\nwall_clock = \"5s\"\n[session]\nenabled = true\nmax_sessions = 2\n",
+        )
+        .expect("write");
+        std::fs::write(
+            dir.join("short.toml"),
+            "version = 1\nname = \"short\"\n[session]\nenabled = true\nidle_ttl = \"1s\"\n",
+        )
+        .expect("write");
+        dir
+    });
+    PolicyDir::load(dir, &LoadOptions::default()).expect("policies")
 }
 
 fn service(audit: Arc<MemorySink>, max_sessions: usize) -> RunService {

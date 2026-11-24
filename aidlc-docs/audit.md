@@ -530,3 +530,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **Timestamp**: 2026-11-24
 **User Input**: "run is done"
 **AI Response**: bench.yml run 45334900239 (commit bd661fd, ubuntu-latest, 4 vCPU, 200 samples) pushed results to ci-results bench/. Rendered docs/BENCHMARKS.md. NFR-P1: Python print(1) p50 3.25 ms (≤15), JS 0.88 ms (≤3), session call 0.79 ms (≤2), 884.5 Python runs/s (≥100), idle session 5.35 MiB (≤40): all met; 0 errors. Non-snapshot Python 38.3 ms; docker run 195 ms, docker exec 70 ms. gVisor skipped (run without the gvisor input). Cycle 3 complete.
+
+---
+
+## CI fixes after benchmark publish
+**Timestamp**: 2026-11-24
+**User Input**: "ci pipeline run and most of the part are failed"
+**AI Response**: CI on a92cb12: two real failures; escape suite, otel and perf smoke were skipped because they need `test`. (1) test (ubuntu-24.04-arm): sessions.rs tests raced, each rewriting the shared policy files while another loaded them (empty short.toml); the files are now written once per process (OnceLock). (2) supply chain: new advisory RUSTSEC-2026-0592 (url <= 2.5.8 stack overflow in Url::origin on nested blob: URLs); url upgraded to 2.5.9. cargo-deny advisories ok; sessions tests 4/4.
