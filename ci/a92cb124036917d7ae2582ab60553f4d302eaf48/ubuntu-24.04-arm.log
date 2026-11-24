@@ -1,0 +1,426 @@
+---- http_session_lifecycle_and_ownership stdout ----
+
+thread 'http_session_lifecycle_and_ownership' (14194) panicked at crates/sandboxd-server/tests/sessions.rs:60:52:
+policies: PolicyErrors([Parse { origin: "/tmp/sandboxd-session-policies-14192/short.toml", msg: "TOML parse error at line 1, column 1\n  |\n1 | \n  | ^\nmissing field `version`" }])
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- http_session_caps_and_errors stdout ----
+
+thread 'http_session_caps_and_errors' (14193) panicked at crates/sandboxd-server/tests/sessions.rs:60:52:
+policies: PolicyErrors([Parse { origin: "/tmp/sandboxd-session-policies-14192/short.toml", msg: "TOML parse error at line 1, column 1\n  |\n1 | \n  | ^\nmissing field `version`" }])
+
+---- idle_sessions_are_reaped stdout ----
+
+thread 'idle_sessions_are_reaped' (14195) panicked at crates/sandboxd-server/tests/sessions.rs:60:52:
+policies: PolicyErrors([Parse { origin: "/tmp/sandboxd-session-policies-14192/short.toml", msg: "TOML parse error at line 1, column 1\n  |\n1 | \n  | ^\nmissing field `version`" }])
+
+
+failures:
+    http_session_caps_and_errors
+    http_session_lifecycle_and_ownership
+    idle_sessions_are_reaped
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+[1m[91merror[0m: test failed, to rerun pass `-p sandboxd-server --test sessions`
+=== tail ===
+[1m[92m   Compiling[0m flate2 v1.1.11
+[1m[92m   Compiling[0m wasmtime-wasi v50.0.3
+[1m[92m   Compiling[0m constant_time_eq v0.6.1
+[1m[92m   Compiling[0m ipnet v2.12.2
+[1m[92m   Compiling[0m typed-path v0.13.0
+[1m[92m   Compiling[0m zip v9.7.1
+[1m[92m   Compiling[0m hyper-util v0.1.21
+[1m[92m   Compiling[0m tower v0.5.3
+[1m[92m   Compiling[0m openssl-probe v0.2.2
+[1m[92m   Compiling[0m rustls-native-certs v0.8.5
+[1m[92m   Compiling[0m tokio-rustls v0.26.6
+[1m[92m   Compiling[0m hyper-rustls v0.27.10
+[1m[92m   Compiling[0m rustls-platform-verifier v0.7.1
+[1m[92m   Compiling[0m tower-http v0.6.11
+[1m[92m   Compiling[0m tokio-util v0.7.20
+[1m[92m   Compiling[0m sandboxd-vfs v0.1.0 (/home/runner/work/Agent_SandBox/Agent_SandBox/crates/sandboxd-vfs)
+[1m[92m   Compiling[0m reqwest v0.13.5
+[1m[92m   Compiling[0m mime v0.3.18
+[1m[92m   Compiling[0m ryu v1.0.23
+[1m[92m   Compiling[0m serde_urlencoded v0.7.1
+[1m[92m   Compiling[0m axum-core v0.5.6
+[1m[92m   Compiling[0m serde_path_to_error v0.1.20
+[1m[92m   Compiling[0m matchit v0.8.4
+[1m[92m   Compiling[0m axum v0.8.9
+[1m[92m   Compiling[0m sandboxd-net v0.1.0 (/home/runner/work/Agent_SandBox/Agent_SandBox/crates/sandboxd-net)
+[1m[92m   Compiling[0m wasmtime-wizer v50.0.3
+[1m[92m   Compiling[0m sandboxd-runtime v0.1.0 (/home/runner/work/Agent_SandBox/Agent_SandBox/crates/sandboxd-runtime)
+[1m[92m   Compiling[0m strsim v0.11.1
+[1m[92m   Compiling[0m hybrid-array v0.4.15
+[1m[92m   Compiling[0m num-conv v0.2.2
+[1m[92m   Compiling[0m powerfmt v0.2.1
+[1m[92m   Compiling[0m time-core v0.1.9
+[1m[92m   Compiling[0m deranged v0.5.9
+[1m[92m   Compiling[0m darling_core v0.24.1
+[1m[92m   Compiling[0m time v0.3.55
+[1m[92m   Compiling[0m yasna v0.6.0
+[1m[92m   Compiling[0m crypto-common v0.2.2
+[1m[92m   Compiling[0m block-buffer v0.12.1
+[1m[92m   Compiling[0m pem v4.0.0
+[1m[92m   Compiling[0m ref-cast-impl v1.0.27
+[1m[92m   Compiling[0m serde_derive_internals v0.30.0
+[1m[92m   Compiling[0m const-oid v0.10.3
+[1m[92m   Compiling[0m digest v0.11.3
+[1m[92m   Compiling[0m ref-cast v1.0.27
+[1m[92m   Compiling[0m rcgen v0.14.10
+[1m[92m   Compiling[0m nix v0.31.4
+[1m[92m   Compiling[0m parking_lot_core v0.9.12
+[1m[92m   Compiling[0m chrono v0.4.45
+[1m[92m   Compiling[0m lock_api v0.4.14
+[1m[92m   Compiling[0m cpufeatures v0.3.1
+[1m[92m   Compiling[0m dyn-clone v1.0.20
+[1m[92m   Compiling[0m tinyvec v1.13.3
+[1m[92m   Compiling[0m unicode-normalization v0.1.26
+[1m[92m   Compiling[0m sha2 v0.11.1
+[1m[92m   Compiling[0m schemars_derive v1.2.3
+[1m[92m   Compiling[0m parking_lot v0.12.5
+[1m[92m   Compiling[0m process-wrap v10.0.1
+[1m[92m   Compiling[0m unicode-general-category v1.1.0
+[1m[92m   Compiling[0m sse-stream v0.2.6
+[1m[92m   Compiling[0m tokio-stream v0.1.19
+[1m[92m   Compiling[0m prometheus-client-derive-encode v0.5.1
+[1m[92m   Compiling[0m dtoa v1.0.11
+[1m[92m   Compiling[0m tower-http v0.7.1
+[1m[92m   Compiling[0m fastrand v2.5.0
+[1m[92m   Compiling[0m tempfile v3.27.0
+[1m[92m   Compiling[0m darling_macro v0.24.1
+[1m[92m   Compiling[0m wait-timeout v0.2.1
+[1m[92m   Compiling[0m bit-vec v0.10.2
+[1m[92m   Compiling[0m quick-error v1.2.3
+[1m[92m   Compiling[0m rusty-fork v0.3.1
+[1m[92m   Compiling[0m darling v0.24.1
+[1m[92m   Compiling[0m rmcp-macros v3.11.0
+[1m[92m   Compiling[0m bit-set v0.11.1
+[1m[92m   Compiling[0m rand_xorshift v0.5.0
+[1m[92m   Compiling[0m core_detect v1.0.0
+[1m[92m   Compiling[0m unarray v0.1.4
+[1m[92m   Compiling[0m utf8parse v0.2.2
+[1m[92m   Compiling[0m anstyle-parse v1.0.0
+[1m[92m   Compiling[0m proptest v1.12.0
+[1m[92m   Compiling[0m prometheus-client v0.26.0
+[1m[92m   Compiling[0m is_terminal_polyfill v1.70.2
+[1m[92m   Compiling[0m anstyle-query v1.1.5
+[1m[92m   Compiling[0m colorchoice v1.0.5
+[1m[92m   Compiling[0m anstream v1.0.0
+[1m[92m   Compiling[0m clap_lex v1.1.2
+[1m[92m   Compiling[0m lazy_static v1.5.1
+[1m[92m   Compiling[0m sharded-slab v0.1.7
+[1m[92m   Compiling[0m clap_builder v4.6.7
+[1m[92m   Compiling[0m schemars v1.2.3
+[1m[92m   Compiling[0m rmcp v3.11.0
+[1m[92m   Compiling[0m matchers v0.2.0
+[1m[92m   Compiling[0m clap_derive v4.6.8
+[1m[92m   Compiling[0m tracing-log v0.2.0
+[1m[92m   Compiling[0m thread_local v1.1.10
+[1m[92m   Compiling[0m nu-ansi-term v0.50.3
+[1m[92m   Compiling[0m tracing-subscriber v0.3.23
+[1m[92m   Compiling[0m sandboxd-server v0.1.0 (/home/runner/work/Agent_SandBox/Agent_SandBox/crates/sandboxd-server)
+[1m[92m   Compiling[0m clap v4.6.8
+[1m[92m   Compiling[0m spike-snapshot v0.1.0 (/home/runner/work/Agent_SandBox/Agent_SandBox/tools/spike-snapshot)
+[1m[92m   Compiling[0m sandboxd v0.1.0 (/home/runner/work/Agent_SandBox/Agent_SandBox/crates/sandboxd)
+[1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 6m 03s
+[1m[92m     Running[0m unittests src/main.rs (target/debug/build/sandboxd/7b2179f9e2f9515d/out/sandboxd-7b2179f9e2f9515d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/cli.rs (target/debug/build/sandboxd/d07ef368e4ccba7d/out/cli-d07ef368e4ccba7d)
+
+running 5 tests
+test ac8_serve_refuses_public_bind_without_tokens ... ok
+test policy_check_token_and_version ... ok
+test run_python_with_input_and_artifact ... ok
+test ac7_mcp_stdio_child_process ... ok
+test run_exit_statuses ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 39.44s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/build/sandboxd-assets/891b329273e0578e/out/sandboxd_assets-891b329273e0578e)
+
+running 2 tests
+test tests::assets_are_non_empty_and_pinned ... ok
+test tests::python_is_a_zip_and_quickjs_is_wasm ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/build/sandboxd-audit/48eb955dfd880759/out/sandboxd_audit-48eb955dfd880759)
+
+running 4 tests
+test event::ts_tests::rfc3339_known_points ... ok
+test redact::tests::operator_patterns ... ok
+test redact::tests::leaves_ordinary_text_alone ... ok
+test redact::tests::redacts_known_secret_shapes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[1m[92m     Running[0m tests/audit.rs (target/debug/build/sandboxd-audit/4d1bcc66f56bf752/out/audit-4d1bcc66f56bf752)
+
+running 9 tests
+test fanout_health_is_conjunction ... ok
+test envelope_and_run_start_golden ... ok
+test file_sink_appends ... ok
+test free_text_is_redacted_and_truncated ... ok
+test jsonl_writes_everything_and_shutdown_flushes ... ok
+test token_principal_never_contains_token ... ok
+test every_event_kind_serializes_with_expected_name ... ok
+test health_goes_false_on_write_failure_and_recovers ... ok
+test full_queue_drops_are_counted_and_reported ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/build/sandboxd-net/c4e83431087acbba/out/sandboxd_net-c4e83431087acbba)
+
+running 15 tests
+test frame::tests::response_roundtrip ... ok
+test frame::tests::rejects_bad_headers ... ok
+test frame::tests::roundtrip_and_partial ... ok
+test ip::tests::permission_matrix ... ok
+test ip::tests::v4_ranges ... ok
+test ip::tests::v6_ranges_and_embedded_v4 ... ok
+test target::tests::audit_path_redacts_query ... ok
+test target::tests::canonicalization_defeats_ip_tricks ... ok
+test target::tests::matching ... ok
+test target::tests::prefix_is_segment_aware ... ok
+test target::tests::tcp_specs ... ok
+test target::tests::rejected_urls ... ok
+test frame::tests::decoder_never_panics ... ok
+test target::tests::parser_never_panics ... ok
+test target::tests::traversal_never_escapes_prefix ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/broker.rs (target/debug/build/sandboxd-net/152e45fd3199eb40/out/broker-152e45fd3199eb40)
+
+running 11 tests
+test frame_protocol_errors ... ok
+test header_policy ... ok
+test allowed_request_roundtrip_and_audit ... ok
+test non_allowlisted_requests_never_reach_the_server ... ok
+test redirect_method_rules_and_cross_origin_credential_drop ... ok
+test redirects_are_rechecked_every_hop ... ok
+test tcp_streams_rules_ssrf_and_audit ... ok
+test ssrf_is_blocked_under_the_default_policy ... ok
+test no_grants_means_no_broker_and_overhead_is_small ... ok
+test tls_uses_trust_store_plus_extra_ca_and_refuses_downgrade ... ok
+test quotas_and_timeouts ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/build/sandboxd-policy/a95e52b6abf48596/out/sandboxd_policy-a95e52b6abf48596)
+
+running 4 tests
+test units::tests::bytes ... ok
+test units::tests::durations ... ok
+test units::tests::display_roundtrip ... ok
+test units::tests::fuel ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/policy.rs (target/debug/build/sandboxd-policy/04b9d11dfaf0edb5/out/policy-04b9d11dfaf0edb5)
+
+running 23 tests
+test byte_parser_is_exact_for_integers ... ok
+test env_rules_and_no_value_leak ... ok
+test all_errors_reported_not_just_first ... ok
+test explain_shows_warnings_without_env_values ... ok
+test guest_paths_validated ... ok
+test host_paths_validated ... ok
+test full_golden_resolves_values_exactly ... ok
+test minimal_gets_defaults_and_is_supported ... ok
+test kill_switch_refuses_granting_policies_at_load ... ok
+test network_grants_are_supported_and_explained ... ok
+test network_field_validation ... ok
+test operator_can_override_default_and_policy_dir_is_not_mountable ... ok
+test ranges_enforced_with_clear_messages ... ok
+test sessions_are_supported_and_validated ... ok
+test tighten_lowers_and_refuses_widening ... ok
+test tighten_never_widens ... ok
+test dir_loads_mixed_formats_and_builtin_default ... ok
+test dir_load_is_all_or_nothing_and_reports_everything ... ok
+test version_and_name_validated ... ok
+test unknown_keys_rejected_at_any_depth ... ok
+test yaml_hardening ... ok
+test toml_and_yaml_goldens_are_identical ... ok
+test parsers_never_panic ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/build/sandboxd-runtime/39eca69870993165/out/sandboxd_runtime-39eca69870993165)
+
+running 6 tests
+test helpers::tests::helper_sources_use_lf_line_endings ... ok
+test helpers::tests::guest_paths_are_under_the_reserved_helper_path ... ok
+test helpers::tests::python_bootstrap_only_when_networking_is_possible ... ok
+test native::tests::detects_only_known_native_packages ... ok
+test stream::tests::caps_and_streams ... ok
+test helpers::tests::extract_reuse_and_repair ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/network.rs (target/debug/build/sandboxd-runtime/d3dc6c788daaff00/out/network-d3dc6c788daaff00)
+
+running 14 tests
+test grants_without_a_broker_are_refused_before_the_guest_runs ... ok
+test devices_open_with_plain_python_open_and_info_is_minimal ... ok
+test javascript_fetch_get_post_json_headers_and_utf8 ... ok
+test javascript_https_fetch_with_test_ca ... ok
+test no_network_events_and_quiet_audit_for_plain_runs ... ok
+test bootstrap_is_invisible_to_programs ... ok
+test python_http_client_connection_reuse_and_head ... ok
+test no_grant_fails_clearly_in_both_languages ... ok
+test python_socket_create_connection_and_connect ... ok
+test python_https_via_urllib_http_client_and_fetch ... ok
+test python_urllib_get_post_redirect_and_http_error ... ok
+test quota_exhaustion_is_a_network_limit ... ok
+test python_bootstrap_is_used_only_when_networking_is_possible ... ok
+test python_denials_proxy_and_timeout_never_reach_the_server ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+
+[1m[92m     Running[0m tests/perf.rs (target/debug/build/sandboxd-runtime/109175ed6bfdaad2/out/perf-109175ed6bfdaad2)
+
+running 1 test
+test perf_smoke_within_twice_nfr3 ... ignored, release-mode performance smoke; run explicitly in CI
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/pool.rs (target/debug/build/sandboxd-runtime/000a9ac039abe9ce/out/pool-000a9ac039abe9ce)
+
+running 6 tests
+test auto_falls_back_and_on_fails_when_the_pool_cannot_be_created ... ok
+test pooling_mode_parses ... ok
+test off_uses_on_demand_allocation ... ok
+test more_concurrent_runs_than_slots_wait_instead_of_failing ... ok
+test runs_work_and_slots_are_released ... ok
+test pooled_memory_is_reset_between_instances ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.39s
+
+[1m[92m     Running[0m tests/runtime.rs (target/debug/build/sandboxd-runtime/88bad58eb472ad87/out/runtime-88bad58eb472ad87)
+
+running 20 tests
+test ac1_hello_javascript_es_module ... ok
+test ac1_hello_python ... ok
+test ac2_fuel_exhaustion_is_cpu ... ok
+test ac3_memory_bomb_is_contained ... ok
+test ac6_numpy_is_unsupported_native_extension ... ok
+test audit_trail_for_a_run ... ok
+test ac2_javascript_infinite_loop ... ok
+test events_stream_then_finished ... ok
+test ac2_wall_clock_while_sleeping_in_host ... ok
+test inputs_and_artifacts_round_trip ... ok
+test exit_codes_and_tracebacks ... ok
+test invalid_requests_and_sessions ... ok
+test overrides_cannot_widen ... ok
+test stdin_args_env_and_readonly_code ... ok
+test stdout_cap_truncates ... ok
+test ac2_wall_clock_busy_loop ... ok
+test twenty_concurrent_runs ... ok
+test performance_and_fuel_calibration_report ... ok
+test deep_recursion_is_contained_not_a_host_crash ... ok
+test tampered_module_cache_is_detected_and_rebuilt ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.96s
+
+[1m[92m     Running[0m tests/session.rs (target/debug/build/sandboxd-runtime/080ffa3686ce7970/out/session-080ffa3686ce7970)
+
+running 12 tests
+test guest_exit_ends_sessions ... ok
+test audit_events_carry_the_session_id ... ok
+test javascript_sessions_keep_state_snapshot ... ok
+test a_forged_reply_cannot_buy_unbudgeted_cpu ... ok
+test javascript_sessions_keep_state_upstream ... ok
+test python_sessions_keep_state_snapshot ... ok
+test python_sessions_keep_state_upstream ... ok
+test session_call_overhead ... ok
+test sessions_must_be_enabled_and_calls_are_validated ... ok
+test limits_end_sessions ... ok
+test busy_loops_are_stopped_by_the_call_budgets ... ok
+test one_call_at_a_time_and_max_calls ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+
+[1m[92m     Running[0m tests/snapshot.rs (target/debug/build/sandboxd-runtime/a87763df59c02450/out/snapshot-a87763df59c02450)
+
+running 5 tests
+test policies_below_the_memory_floor_use_the_upstream_interpreter ... ok
+test snapshot_mode_parses ... ok
+test runs_never_see_state_from_previous_runs ... ok
+test restored_runs_use_far_fewer_instructions ... ok
+test snapshot_and_upstream_paths_are_indistinguishable ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/build/sandboxd-server/bdbbb6ca9333313c/out/sandboxd_server-bdbbb6ca9333313c)
+
+running 4 tests
+test auth::tests::verify_tokens ... ok
+test config::tests::parses_and_checks_bind_safety ... ok
+test config::tests::runtime_pooling_mode ... ok
+test config::tests::telemetry_endpoint_and_interval ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/otel.rs (target/debug/build/sandboxd-server/0f3cd38cb7e42eb8/out/otel-0f3cd38cb7e42eb8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/server.rs (target/debug/build/sandboxd-server/4e9066f9d1071dae/out/server-4e9066f9d1071dae)
+
+running 9 tests
+test ac8_bind_safety ... ok
+test fails_closed_when_audit_is_broken ... ok
+test http_errors_are_structured ... ok
+test ac8_auth_required_and_enforced ... ok
+test http_sse_streams_output_then_result ... ok
+test http_run_with_files_limits_and_artifacts ... ok
+test ac7_mcp_over_http_with_token_and_principal ... ok
+test ac7_mcp_tools_artifacts_and_progress ... ok
+test overloaded_returns_429 ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.21s
+
+[1m[92m     Running[0m tests/sessions.rs (target/debug/build/sandboxd-server/42617908eb1ed5dc/out/sessions-42617908eb1ed5dc)
+
+running 4 tests
+test http_session_lifecycle_and_ownership ... FAILED
+test http_session_caps_and_errors ... FAILED
+test idle_sessions_are_reaped ... FAILED
+test mcp_session_tools ... ok
+
+failures:
+
+---- http_session_lifecycle_and_ownership stdout ----
+
+thread 'http_session_lifecycle_and_ownership' (14194) panicked at crates/sandboxd-server/tests/sessions.rs:60:52:
+policies: PolicyErrors([Parse { origin: "/tmp/sandboxd-session-policies-14192/short.toml", msg: "TOML parse error at line 1, column 1\n  |\n1 | \n  | ^\nmissing field `version`" }])
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- http_session_caps_and_errors stdout ----
+
+thread 'http_session_caps_and_errors' (14193) panicked at crates/sandboxd-server/tests/sessions.rs:60:52:
+policies: PolicyErrors([Parse { origin: "/tmp/sandboxd-session-policies-14192/short.toml", msg: "TOML parse error at line 1, column 1\n  |\n1 | \n  | ^\nmissing field `version`" }])
+
+---- idle_sessions_are_reaped stdout ----
+
+thread 'idle_sessions_are_reaped' (14195) panicked at crates/sandboxd-server/tests/sessions.rs:60:52:
+policies: PolicyErrors([Parse { origin: "/tmp/sandboxd-session-policies-14192/short.toml", msg: "TOML parse error at line 1, column 1\n  |\n1 | \n  | ^\nmissing field `version`" }])
+
+
+failures:
+    http_session_caps_and_errors
+    http_session_lifecycle_and_ownership
+    idle_sessions_are_reaped
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+[1m[91merror[0m: test failed, to rerun pass `-p sandboxd-server --test sessions`
