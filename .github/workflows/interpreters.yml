@@ -35,16 +35,16 @@ jobs:
       go: ${{ steps.verdict.outputs.go }}
       source_hash: ${{ steps.verdict.outputs.source_hash }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - id: setup_python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install pinned toolchain (rust-toolchain.toml)
         id: toolchain
         run: rustup show active-toolchain || rustup toolchain install
       - id: assets_cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: assets/vendor
           key: assets-${{ hashFiles('assets/manifest.toml') }}
@@ -52,7 +52,7 @@ jobs:
         id: assets
         run: python scripts/fetch-assets.py
       - id: interp_cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/sandboxd-interp
           key: interp-${{ hashFiles('interpreters/sources.toml') }}-v1
@@ -159,7 +159,7 @@ jobs:
           echo "source_hash=$hash" >>"$GITHUB_OUTPUT"
           echo "go=$go source_hash=$hash"
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: interpreters-${{ github.sha }}
@@ -179,8 +179,8 @@ jobs:
       id-token: write # build-provenance attestation
       attestations: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v7
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: interpreters-${{ github.sha }}
           path: art
@@ -189,7 +189,7 @@ jobs:
         run: |
           cd art/dist
           sha256sum sandboxd-python.wasm sandboxd-qjs.wasm | tee SHA256SUMS
-      - uses: actions/attest-build-provenance@v3
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             art/dist/sandboxd-python.wasm
