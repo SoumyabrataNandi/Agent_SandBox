@@ -18,7 +18,13 @@ audits every capability use. Agents reach it over a CLI, an HTTP API, or as an M
 | Isolation | wasmtime + WASI preopens; no sockets, no env inheritance, no host paths outside mounts |
 | Network | Off by default. Per-policy HTTP(S)/TCP allowlists through an SSRF-hardened, audited broker |
 
-## Quick start
+## Install
+Download the archive for your platform from [Releases](https://github.com/SoumyabrataNandi/Agent_SandBox/releases/latest),
+verify it against `SHA256SUMS` and its build attestation, then run `sandboxd cache warm` once.
+Step by step, including MCP setup: **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)**.
+Changes: [CHANGELOG.md](CHANGELOG.md). Reporting a vulnerability: [SECURITY.md](SECURITY.md).
+
+## Quick start (from source)
 ```bash
 python scripts/fetch-assets.py            # pinned, hash-verified interpreters
 cargo build --release

@@ -54,7 +54,8 @@ jobs:
           mkdir -p "dist/${name}/licenses"
           exe=sandboxd; [[ "${{ matrix.target }}" == *windows* ]] && exe=sandboxd.exe
           cp "target/${{ matrix.target }}/release/${exe}" "dist/${name}/"
-          cp LICENSE NOTICE THIRD_PARTY_NOTICES.md README.md THREAT_MODEL.md "dist/${name}/"
+          cp LICENSE NOTICE THIRD_PARTY_NOTICES.md README.md THREAT_MODEL.md SECURITY.md CHANGELOG.md "dist/${name}/"
+          cp docs/GETTING_STARTED.md "dist/${name}/GETTING_STARTED.md"
           cp docs/MCP.md "dist/${name}/MCP.md"
           cp docs/NETWORK.md "dist/${name}/NETWORK.md"
           cp docs/BENCHMARKS.md "dist/${name}/BENCHMARKS.md"
@@ -82,12 +83,35 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true
       - name: Checksums
         run: cd dist && sha256sum sandboxd-* > SHA256SUMS && cat SHA256SUMS
+      - name: Release notes from CHANGELOG.md
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${GITHUB_REF_NAME#v}"
+          # The section for this version: from its "## [x.y.z]" heading to the next "## [" heading.
+          awk -v v="$ver" '
+            /^## \[/ { if (on) exit; if (index($0, "## [" v "]") == 1) { on = 1; next } }
+            on && !/^\[[^]]+\]: / { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then echo "CHANGELOG.md has no section for $ver" >&2; exit 1; fi
+          {
+            echo
+            echo "---"
+            echo "Every archive passed the escape suite on its own target before it was packaged."
+            echo "Verify: \`sha256sum --ignore-missing -c SHA256SUMS\` and \`gh attestation verify <archive> --repo ${GITHUB_REPOSITORY}\`."
+            echo "Install: [GETTING_STARTED.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/GETTING_STARTED.md)."
+          } >> notes.md
+          cat notes.md
       - name: Draft GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -95,4 +119,4 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" dist/* \
             --repo "${GITHUB_REPOSITORY}" --draft --verify-tag \
             --title "sandboxd ${GITHUB_REF_NAME}" \
-            --notes "Draft created by CI. Every archive passed the escape suite on its target. Verify: \`sha256sum -c SHA256SUMS\` and \`gh attestation verify <archive> --repo ${GITHUB_REPOSITORY}\`."
+            --notes-file notes.md

@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: Cycle 4 — CONSTRUCTION
-- **Current Stage**: Cycle 4 (ship and pilot): C4-U1, C4-U2 done; next C4-U3 docs
+- **Current Stage**: Cycle 4 (ship and pilot): C4-U1–U3 done; next C4-U4 release v0.1.0
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -131,5 +131,5 @@
 |---|---|
 | C4-U1 Supply-chain automation + SECURITY.md | Done (dependabot, security.yml, SECURITY.md) |
 | C4-U2 MCP pilot + fixes | Done (pilot 10/10 local; CI job on Linux + Windows; F1 cold start → docs) |
-| C4-U3 Getting started, changelog, release packaging | Pending |
+| C4-U3 Getting started, changelog, release packaging | Done |
 | C4-U4 Release v0.1.0 | Pending |
