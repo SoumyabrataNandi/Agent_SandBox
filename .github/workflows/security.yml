@@ -1,0 +1,134 @@
+name: security
+
+# FR-SC1: check main against the RustSec advisory database every day, not only on push.
+# A failure opens (or updates) one issue labelled `security`; the next clean run closes it.
+# Every run writes security/latest.json to the ci-results branch (ADR-C3-5).
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  advisories:
+    name: advisories (cargo-deny + cargo-audit)
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.check.outputs.ok }}
+      ids: ${{ steps.check.outputs.ids }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny,cargo-audit
+      - name: Check
+        id: check
+        shell: bash
+        run: |
+          set -uo pipefail
+          deny=0; audit=0
+          cargo deny check advisories > deny.log 2>&1 || deny=$?
+          cargo audit > audit.log 2>&1 || audit=$?
+          cat deny.log audit.log
+          ids="$(grep -ohE 'RUSTSEC-[0-9]{4}-[0-9]{4}' deny.log audit.log | sort -u | paste -sd' ' -)"
+          ok=true; [ "$deny" -eq 0 ] && [ "$audit" -eq 0 ] || ok=false
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          echo "ids=$ids" >> "$GITHUB_OUTPUT"
+          python3 - "$ok" "$ids" <<'PY'
+          import json, os, sys, datetime
+          ok, ids = sys.argv[1] == "true", sys.argv[2].split()
+          json.dump({"sha": os.environ["GITHUB_SHA"], "date": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
+                     "ok": ok, "advisories": ids, "run_id": os.environ["GITHUB_RUN_ID"]}, open("security.json", "w"), indent=2)
+          PY
+          {
+            echo "### Advisories on main: $([ "$ok" = true ] && echo clean || echo FAILED)"
+            [ -n "$ids" ] && echo "IDs mentioned: $ids"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: security-report
+          path: |
+            security.json
+            deny.log
+            audit.log
+
+  publish:
+    name: publish result
+    needs: advisories
+    if: always() && needs.advisories.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only to push security/latest.json to ci-results
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          name: security-report
+          path: report
+      - name: Push to ci-results
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            rm -rf /tmp/ci-results; git worktree prune
+            if git fetch origin ci-results:ci-results --force 2>/dev/null; then
+              git worktree add /tmp/ci-results ci-results
+            else
+              git worktree add --orphan -b ci-results /tmp/ci-results
+            fi
+            mkdir -p /tmp/ci-results/security
+            cp report/security.json /tmp/ci-results/security/latest.json
+            (cd /tmp/ci-results && git add security && { git commit -m "security check ${GITHUB_SHA} (run ${GITHUB_RUN_ID})" || exit 0; } && git push origin ci-results) && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1
+
+  issue:
+    name: open or close the advisory issue
+    needs: advisories
+    if: always() && needs.advisories.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      OK: ${{ needs.advisories.outputs.ok }}
+      IDS: ${{ needs.advisories.outputs.ids }}
+      TITLE: Security advisory affects main
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Update issue
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh label create security --color B60205 --description "Security advisories and fixes" 2>/dev/null || true
+          num="$(gh issue list --state open --label security --search "in:title \"$TITLE\"" --json number,title \
+                 --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+          if [ "$OK" = true ]; then
+            if [ -n "$num" ]; then
+              gh issue close "$num" --comment "Advisory check is clean again on main ($RUN_URL)."
+            fi
+            exit 0
+          fi
+          body="The daily advisory check failed on \`main\`.
+
+          Advisories mentioned: ${IDS:-none parsed, see the run log}
+          Run: $RUN_URL
+
+          Fix: upgrade the affected crate (\`cargo update -p <crate> --precise <fixed version>\`), run
+          \`cargo deny check advisories\`, and push. This issue closes itself after the next clean run."
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body "Still failing. Advisories: ${IDS:-see log}. Run: $RUN_URL"
+          else
+            gh issue create --title "$TITLE" --label security --body "$body"
+          fi

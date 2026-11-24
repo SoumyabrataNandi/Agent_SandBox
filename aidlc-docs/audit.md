@@ -537,3 +537,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **Timestamp**: 2026-11-24
 **User Input**: "ci pipeline run and most of the part are failed"
 **AI Response**: CI on a92cb12: two real failures; escape suite, otel and perf smoke were skipped because they need `test`. (1) test (ubuntu-24.04-arm): sessions.rs tests raced, each rewriting the shared policy files while another loaded them (empty short.toml); the files are now written once per process (OnceLock). (2) supply chain: new advisory RUSTSEC-2026-0592 (url <= 2.5.8 stack overflow in Url::origin on nested blob: URLs); url upgraded to 2.5.9. cargo-deny advisories ok; sessions tests 4/4.
+
+---
+
+## Cycle 4 inception (ship and pilot); C4-U1
+**Timestamp**: 2026-11-24
+**User Input**: "ok then start cycle 4 all ar eapproved from my end and select all default values"
+**AI Response**: Cycle 4 = ship and pilot (no new sandbox features). Questions Q1–Q7 written with recommended answers (all A, per the user): supply-chain automation (Dependabot + daily security workflow that opens/closes one issue and writes security/latest.json to ci-results), SECURITY.md, an MCP pilot harness in CI (Linux + Windows), getting-started guide + changelog, v0.1.0 tag → draft release (user publishes), no container image. Requirements, execution plan and units (C4-U1..U4) written. C4-U1 built: .github/dependabot.yml (wasmtime crates excluded; upgraded by hand), .github/workflows/security.yml, SECURITY.md. Owner action: enable private vulnerability reporting in repo settings.

@@ -4,8 +4,8 @@
 - **Project**: sandboxd — WebAssembly sandbox for agent-generated code
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
-- **Current Phase**: Cycle 3 — CONSTRUCTION
-- **Current Stage**: Cycle 3 complete (C3-U1–U6); benchmarks published (bench run 45334900239, all NFR-P1 targets met)
+- **Current Phase**: Cycle 4 — CONSTRUCTION
+- **Current Stage**: Cycle 4 (ship and pilot): C4-U1 done; next C4-U2 MCP pilot
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -104,3 +104,32 @@
 | C3-U4 Sessions | Approved; done (runtime 12 + server 4 session tests) |
 | C3-U5 Benchmarks | Approved; done (harness, bench.yml); docs/BENCHMARKS.md published from bench run 45334900239 at bd661fd |
 | C3-U6 Escape + threat model + docs | Approved (blanket approval); done (6 escape cases, T19–T23, docs) |
+
+---
+
+# Cycle 4 (ship and pilot)
+
+## Workspace State (2026-11-24)
+- **Project Type**: Brownfield (cycles 1–3 complete; CI green on 4 OSes at 7d53a22)
+- **Reverse Engineering**: SKIP (artifacts current)
+- **Artifacts root**: `aidlc-docs/cycle-4/`
+- **Approval**: blanket, all recommended defaults (user, 2026-11-24)
+
+## Stage Progress
+- [x] Workspace Detection — brownfield, clean tree
+- [ ] Reverse Engineering — SKIP
+- [x] Requirements Analysis — approved 2026-11-24 (Q1–Q7 all A)
+- [ ] User Stories — SKIP
+- [x] Workflow Planning — approved 2026-11-24
+- [ ] Application Design — SKIP (no new components)
+- [x] Units Generation — light (in execution-plan.md)
+- [ ] Construction (per unit)
+- [ ] Build and Test
+
+## Cycle 4 Construction Progress
+| Unit | Status |
+|---|---|
+| C4-U1 Supply-chain automation + SECURITY.md | Done (dependabot, security.yml, SECURITY.md) |
+| C4-U2 MCP pilot + fixes | Pending |
+| C4-U3 Getting started, changelog, release packaging | Pending |
+| C4-U4 Release v0.1.0 | Pending |

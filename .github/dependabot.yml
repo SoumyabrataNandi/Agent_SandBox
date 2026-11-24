@@ -1,0 +1,27 @@
+# FR-SC1.1: weekly dependency updates. Minor/patch Cargo bumps arrive as one grouped PR; CI
+# (including cargo-deny and cargo-audit) runs on each PR. The scheduled `security` workflow catches
+# advisories between these runs.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      cargo-minor-patch:
+        update-types: [minor, patch]
+    # wasmtime crates are pinned with `=` and move together (wasmtime, wasmtime-wasi, wiggle,
+    # wasmtime-wizer); a version bump also needs the snapshot and escape suites. Upgrade them by hand.
+    ignore:
+      - dependency-name: "wasmtime*"
+      - dependency-name: "wiggle"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
