@@ -33,14 +33,14 @@ jobs:
     permissions:
       contents: write # only to push the results to the ci-results branch
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Harness self-test
         run: python -I -m unittest discover -s scripts/bench -p "test_*.py"
       - run: rustup show active-toolchain || rustup toolchain install
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: assets/vendor
           key: assets-${{ hashFiles('assets/manifest.toml') }}
@@ -99,7 +99,7 @@ jobs:
             echo "No results file: see bench.log in the artifact." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: bench-${{ github.sha }}

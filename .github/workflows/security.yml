@@ -22,7 +22,7 @@ jobs:
       ok: ${{ steps.check.outputs.ok }}
       ids: ${{ steps.check.outputs.ids }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: main
       - uses: taiki-e/install-action@v2
@@ -51,7 +51,7 @@ jobs:
             echo "### Advisories on main: $([ "$ok" = true ] && echo clean || echo FAILED)"
             [ -n "$ids" ] && echo "IDs mentioned: $ids"
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: security-report
           path: |
@@ -67,8 +67,8 @@ jobs:
     permissions:
       contents: write # only to push security/latest.json to ci-results
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v7
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: security-report
           path: report

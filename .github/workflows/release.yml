@@ -33,8 +33,8 @@ jobs:
       id-token: write       # build-provenance attestation
       attestations: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - run: rustup show active-toolchain || rustup toolchain install
@@ -69,10 +69,10 @@ jobs:
           PY
           cd dist
           if [[ "${{ matrix.archive }}" == zip ]]; then 7z a -tzip "${name}.zip" "${name}" >/dev/null; else tar czf "${name}.tar.gz" "${name}"; fi
-      - uses: actions/attest-build-provenance@v3
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: dist/sandboxd-*.${{ matrix.archive }}
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target }}
           path: dist/sandboxd-*.${{ matrix.archive }}
@@ -83,11 +83,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: CHANGELOG.md
           sparse-checkout-cone-mode: false
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
