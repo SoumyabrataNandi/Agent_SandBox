@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: Cycle 3 — CONSTRUCTION
-- **Current Stage**: Cycle 3 construction complete (C3-U1–U6). Remaining: first bench.yml run (manual) → render docs/BENCHMARKS.md
+- **Current Stage**: Cycle 3 complete (C3-U1–U6); benchmarks published (bench run 45334900239, all NFR-P1 targets met)
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -102,5 +102,5 @@
 | C3-U2 Pooling | ✅ Approved 2026-11-19 |
 | C3-U3 Snapshot integration | ✅ Approved 2026-11-20 (pushed 9e3ab22) |
 | C3-U4 Sessions | Approved; done (runtime 12 + server 4 session tests) |
-| C3-U5 Benchmarks | Approved; done (harness, bench.yml); published numbers await the first manual bench run |
+| C3-U5 Benchmarks | Approved; done (harness, bench.yml); docs/BENCHMARKS.md published from bench run 45334900239 at bd661fd |
 | C3-U6 Escape + threat model + docs | Approved (blanket approval); done (6 escape cases, T19–T23, docs) |

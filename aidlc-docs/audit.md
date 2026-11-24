@@ -523,3 +523,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **Timestamp**: 2026-11-21
 **User Input**: "continue" (standing blanket approval)
 **AI Response**: CI on d041749: supply-chain failed on RUSTSEC-2026-0587 (wasmtime-wasi < 50.0.3, Windows WASI filesystem escape via a drive-prefixed path component; published 2026-11-19). Upgraded wasmtime/wasmtime-wasi/wiggle/wasmtime-wizer to 50.0.3; cargo-deny advisories ok. The escape suite failed on both Linux runners; the likely cause is an E-SNAP-2 false positive (bare temp dir `/tmp` as a needle), which is fixed. Escape-suite failure logs are now also published to ci-results. A local parallel build hit corrupted or missing-artifact errors (file-access interference on Windows); a clean build with -j 4 fixed it. Full workspace incl. escape suite (6+17+11) passes on 50.0.3.
+
+---
+
+## Benchmarks published
+**Timestamp**: 2026-11-24
+**User Input**: "run is done"
+**AI Response**: bench.yml run 45334900239 (commit bd661fd, ubuntu-latest, 4 vCPU, 200 samples) pushed results to ci-results bench/. Rendered docs/BENCHMARKS.md. NFR-P1: Python print(1) p50 3.25 ms (≤15), JS 0.88 ms (≤3), session call 0.79 ms (≤2), 884.5 Python runs/s (≥100), idle session 5.35 MiB (≤40): all met; 0 errors. Non-snapshot Python 38.3 ms; docker run 195 ms, docker exec 70 ms. gVisor skipped (run without the gvisor input). Cycle 3 complete.
