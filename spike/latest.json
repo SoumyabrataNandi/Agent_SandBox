@@ -110,10 +110,10 @@
     },
     "snapshot_module_bytes": 1664743,
     "snapshot_print_fuel": 65618,
-    "snapshot_print_ms_median": 0.446242,
-    "speedup": 2.409161396730921,
+    "snapshot_print_ms_median": 0.424371,
+    "speedup": 2.4893077048148906,
     "upstream_print_fuel": 3627865,
-    "upstream_print_ms_median": 1.0750689999999998
+    "upstream_print_ms_median": 1.05639
   },
   "python": {
     "compat": [
@@ -122,13 +122,13 @@
         "name": "print",
         "snapshot": {
           "exit": 0,
-          "fuel": 1722371,
+          "fuel": 1724413,
           "stderr": "",
           "stdout": "1\n"
         },
         "upstream": {
           "exit": 0,
-          "fuel": 54799821,
+          "fuel": 54904769,
           "stderr": "",
           "stdout": "1\n"
         }
@@ -138,13 +138,13 @@
         "name": "traceback",
         "snapshot": {
           "exit": 1,
-          "fuel": 220656246,
+          "fuel": 220532513,
           "stderr": "Traceback (most recent call last):\n  File \"/code/main.py\", line 7, in <module>\n    g()\n    ~^^\n  File \"/code/main.py\", line 5, in g\n    f()\n    ~^^\n  File \"/code/main.py\", line 2, in f\n    return 1 / 0\n           ~~^~~\nZeroDivisionError: division by zero\n",
           "stdout": ""
         },
         "upstream": {
           "exit": 1,
-          "fuel": 421955292,
+          "fuel": 422164765,
           "stderr": "Traceback (most recent call last):\n  File \"/code/main.py\", line 7, in <module>\n    g()\n    ~^^\n  File \"/code/main.py\", line 5, in g\n    f()\n    ~^^\n  File \"/code/main.py\", line 2, in f\n    return 1 / 0\n           ~~^~~\nZeroDivisionError: division by zero\n",
           "stdout": ""
         }
@@ -154,13 +154,13 @@
         "name": "syntax-error",
         "snapshot": {
           "exit": 1,
-          "fuel": 217674830,
+          "fuel": 217441933,
           "stderr": "  File \"/code/main.py\", line 1\n    x = (\n        ^\nSyntaxError: '(' was never closed\n",
           "stdout": ""
         },
         "upstream": {
           "exit": 1,
-          "fuel": 419300343,
+          "fuel": 418237389,
           "stderr": "  File \"/code/main.py\", line 1\n    x = (\n        ^\nSyntaxError: '(' was never closed\n",
           "stdout": ""
         }
@@ -170,13 +170,13 @@
         "name": "sys-exit",
         "snapshot": {
           "exit": 3,
-          "fuel": 1881250,
+          "fuel": 1883517,
           "stderr": "",
           "stdout": "bye\n"
         },
         "upstream": {
           "exit": 3,
-          "fuel": 55037946,
+          "fuel": 54982556,
           "stderr": "",
           "stdout": "bye\n"
         }
@@ -186,13 +186,13 @@
         "name": "argv-env",
         "snapshot": {
           "exit": 0,
-          "fuel": 2435475,
+          "fuel": 2437661,
           "stderr": "",
           "stdout": "['/code/main.py', 'a1', 'b2']\nbar UTC ['FOO', 'TZ']\nb'bar'\n"
         },
         "upstream": {
           "exit": 0,
-          "fuel": 75938290,
+          "fuel": 75984132,
           "stderr": "",
           "stdout": "['/code/main.py', 'a1', 'b2']\nbar UTC ['FOO', 'TZ']\nb'bar'\n"
         }
@@ -202,13 +202,13 @@
         "name": "main-module",
         "snapshot": {
           "exit": 0,
-          "fuel": 2085011,
+          "fuel": 2085360,
           "stderr": "",
           "stdout": "__main__ /code/main.py False 1 1 True\n"
         },
         "upstream": {
           "exit": 0,
-          "fuel": 55196599,
+          "fuel": 55194306,
           "stderr": "",
           "stdout": "__main__ /code/main.py False 1 1 True\n"
         }
@@ -218,13 +218,13 @@
         "name": "workload",
         "snapshot": {
           "exit": 0,
-          "fuel": 3312063,
+          "fuel": 3308630,
           "stderr": "",
           "stdout": "{\"rows\": [[\"a\", \"b\"], [\"1\", \"2\"], [\"3\", \"4\"]], \"mean\": 2} a#b# 2026-01-02\n"
         },
         "upstream": {
           "exit": 0,
-          "fuel": 210052450,
+          "fuel": 210344814,
           "stderr": "",
           "stdout": "{\"rows\": [[\"a\", \"b\"], [\"1\", \"2\"], [\"3\", \"4\"]], \"mean\": 2} a#b# 2026-01-02\n"
         }
@@ -234,13 +234,13 @@
         "name": "atexit-and-stderr",
         "snapshot": {
           "exit": 0,
-          "fuel": 2165437,
+          "fuel": 2164514,
           "stderr": "to stderr\n",
           "stdout": "atexit ran\n"
         },
         "upstream": {
           "exit": 0,
-          "fuel": 55434087,
+          "fuel": 55510542,
           "stderr": "to stderr\n",
           "stdout": "atexit ran\n"
         }
@@ -250,13 +250,13 @@
         "name": "chained",
         "snapshot": {
           "exit": 1,
-          "fuel": 220280730,
+          "fuel": 219967811,
           "stderr": "Traceback (most recent call last):\n  File \"/code/main.py\", line 2, in <module>\n    {}['k']\n    ~~^^^^^\nKeyError: 'k'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/code/main.py\", line 4, in <module>\n    raise ValueError('wrapped') from e\nValueError: wrapped\n",
           "stdout": ""
         },
         "upstream": {
           "exit": 1,
-          "fuel": 421432645,
+          "fuel": 421633686,
           "stderr": "Traceback (most recent call last):\n  File \"/code/main.py\", line 2, in <module>\n    {}['k']\n    ~~^^^^^\nKeyError: 'k'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/code/main.py\", line 4, in <module>\n    raise ValueError('wrapped') from e\nValueError: wrapped\n",
           "stdout": ""
         }
@@ -266,13 +266,13 @@
         "name": "files",
         "snapshot": {
           "exit": 0,
-          "fuel": 2273505,
+          "fuel": 2273633,
           "stderr": "",
           "stdout": "['main.py']\nimport os\n"
         },
         "upstream": {
           "exit": 0,
-          "fuel": 75860246,
+          "fuel": 75655435,
           "stderr": "",
           "stdout": "['main.py']\nimport os\n"
         }
@@ -339,7 +339,7 @@
       "error": "no sandboxd-step export"
     },
     "random_differs": true,
-    "snapshot_build_ms": 3424.570378,
+    "snapshot_build_ms": 3716.146635,
     "snapshot_exports": {
       "exports": [
         "memory",
@@ -348,9 +348,9 @@
       ],
       "imports": 42
     },
-    "snapshot_module_bytes": 13657110,
-    "snapshot_print_fuel": 1718936,
-    "snapshot_print_ms_median": 2.33042,
+    "snapshot_module_bytes": 13656408,
+    "snapshot_print_fuel": 1720971,
+    "snapshot_print_ms_median": 2.032751,
     "snapshot_sections": [
       [
         1,
@@ -390,7 +390,7 @@
       ],
       [
         11,
-        8798441
+        8797739
       ],
       [
         0,
@@ -405,13 +405,13 @@
         164
       ]
     ],
-    "speedup": 13.879064717947834,
-    "upstream_print_fuel": 54759340,
-    "upstream_print_ms_median": 32.344049999999996
+    "speedup": 13.362028600650053,
+    "upstream_print_fuel": 54726455,
+    "upstream_print_ms_median": 27.161676999999997
   },
   "ci": {
-    "sha": "b98d6767bbbc0a3eccc58912de229091bb2a9e89",
-    "run_id": "44693222084",
+    "sha": "d4fe4f5940930cb811a01f439b0f476bc6520adf",
+    "run_id": "45390125119",
     "python_build": "success",
     "quickjs_build": "success",
     "spike": "success",
@@ -430,10 +430,10 @@
     },
     "resources": [
       "Filesystem      Size  Used Avail Use% Mounted on",
-      "/dev/root       145G   61G   84G  43% /",
-      "/dev/root       145G   61G   84G  43% /",
+      "/dev/root       145G   59G   87G  41% /",
+      "/dev/root       145G   59G   87G  41% /",
       "               total        used        free      shared  buff/cache   available",
-      "Mem:           15983        1742        9878          46        4753       14240",
+      "Mem:           15983        1291       13264          46        1767       14691",
       "Swap:           3071           0        3071",
       "4"
     ],
@@ -453,12 +453,160 @@
       "LIBS=libpython3.15.a -ldl  -lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lpthread             -lm -lm -lm  Modules/_hacl/libHacl_Hash_MD5.a Modules/_hacl/libHacl_Hash_SHA1.a Modules/_hacl/libHacl_Hash_SHA2.a Modules/_hacl/libHacl_Hash_SHA3.a Modules/_hacl/libHacl_Hash_BLAKE2.a Modules/_hacl/libHacl_HMAC.a -lm Modules/expat/libexpat.a                           -lm                     -lm "
     ],
     "python_build_log_tail": [
-      ">> wasi-sdk: /home/runner/.cache/sandboxd-interp/wasi-sdk-33",
+      "global_config[Py_BytesWarningFlag]: 0",
+      "global_config[Py_DebugFlag]: 0",
+      "global_config[Py_DontWriteBytecodeFlag]: 0",
+      "global_config[Py_FileSystemDefaultEncodeErrors]: 'surrogateescape'",
+      "global_config[Py_FileSystemDefaultEncoding]: 'utf-8'",
+      "global_config[Py_FrozenFlag]: 0",
+      "global_config[Py_HasFileSystemDefaultEncoding]: 0",
+      "global_config[Py_HashRandomizationFlag]: 1",
+      "global_config[Py_IgnoreEnvironmentFlag]: 0",
+      "global_config[Py_InspectFlag]: 0",
+      "global_config[Py_InteractiveFlag]: 0",
+      "global_config[Py_IsolatedFlag]: 0",
+      "global_config[Py_NoSiteFlag]: 0",
+      "global_config[Py_NoUserSiteDirectory]: 0",
+      "global_config[Py_OptimizeFlag]: 0",
+      "global_config[Py_QuietFlag]: 0",
+      "global_config[Py_UTF8Mode]: 1",
+      "global_config[Py_UnbufferedStdioFlag]: 0",
+      "global_config[Py_VerboseFlag]: 0",
+      "global_config[_Py_HasFileSystemDefaultEncodeErrors]: 0",
+      "importlib.extension_suffixes: ['.cpython-315-wasm32-wasi.so', '.abi3-wasm32-wasi.so', '.abi3.so', '.abi3t-wasm32-wasi.so', '.abi3t.so', '.so']",
+      "libregrtests.build_info: release",
+      "locale.getencoding: UTF-8",
+      "os.cpu_count: 1",
+      "os.getcwd: /",
+      "os.name: posix",
+      "os.process_cpu_count: 1",
+      "os.supports_bytes_environ: True",
+      "os.supports_dir_fd: ['access', 'lstat', 'mkdir', 'open', 'readlink', 'rename', 'rmdir', 'stat', 'symlink', 'unlink', 'utime']",
+      "os.supports_effective_ids: ['access']",
+      "os.supports_fd: ['pathconf', 'stat', 'truncate', 'utime']",
+      "os.supports_follow_symlinks: ['access', 'stat', 'utime']",
+      "os.uname: posix.uname_result(sysname='wasi', nodename='(none)', release='0.0.0', version='0.0.0', machine='wasm32')",
+      "platform.architecture: 32bit",
+      "platform.platform: wasi-0.0.0-wasm32-32bit",
+      "platform.python_implementation: CPython",
+      "pre_config[_config_init]: 2",
+      "pre_config[allocator]: 0",
+      "pre_config[coerce_c_locale]: 0",
+      "pre_config[coerce_c_locale_warn]: 0",
+      "pre_config[configure_locale]: 1",
+      "pre_config[dev_mode]: 0",
+      "pre_config[isolated]: 0",
+      "pre_config[parse_argv]: 1",
+      "pre_config[use_environment]: 1",
+      "pre_config[utf8_mode]: 1",
+      "pymem.allocator: malloc",
+      "socket.hostname: (none)",
+      "subprocess._USE_POSIX_SPAWN: False",
+      "support.MS_WINDOWS: False",
+      "support._is_gui_available: False",
+      "support.built_with_c_assertions: False",
+      "support.check_sanitizer(address=True): False",
+      "support.check_sanitizer(memory=True): False",
+      "support.check_sanitizer(ub=True): False",
+      "support.has_fork_support: False",
+      "support.has_socket_support: False",
+      "support.has_strftime_extensions: True",
+      "support.has_subprocess_support: False",
+      "support.is_android: False",
+      "support.is_emscripten: False",
+      "support.is_jython: False",
+      "support.is_wasi: True",
+      "support.is_wasm32: True",
+      "support.python_is_optimized: True",
+      "support_os_helper.can_chmod: False",
+      "support_os_helper.can_dac_override: False",
+      "support_os_helper.can_symlink: False",
+      "support_os_helper.can_xattr: False",
+      "support_socket_helper.IPV6_ENABLED: False",
+      "support_socket_helper.has_gethostname: False",
+      "support_socket_helper.tcp_blackhole: False",
+      "support_threading_helper.can_start_thread: False",
+      "sys._is_gil_enabled: True",
+      "sys.api_version: 1013",
+      "sys.builtin_module_names: ('_abc', '_ast', '_asyncio', '_bisect', '_blake2', '_codecs', '_codecs_cn', '_codecs_hk', '_codecs_iso2022', '_codecs_jp', '_codecs_kr', '_codecs_tw', '_collections', '_contextvars', '_csv', '_datetime', '_elementtree', '_functools', '_heapq', '_hmac', '_imp', '_io', '_json', '_locale', '_lsprof', '_math_integer', '_md5', '_multibytecodec', '_opcode', '_operator', '_pickle', '_queue', '_random', '_sha1', '_sha2', '_sha3', '_signal', '_socket', '_sre', '_stat', '_statistics', '_string', '_struct', '_suggestions', '_symtable', '_sysconfig', '_testbuffer', '_testcapi', '_testclinic', '_testclinic_limited', '_testinternalcapi', '_testlimitedcapi', '_thread', '_tokenize', '_tracemalloc', '_types', '_typing', '_warnings', '_weakref', '_xxtestfuzz', '_zoneinfo', 'array', 'atexit', 'binascii', 'builtins', 'cmath', 'errno', 'faulthandler', 'gc', 'itertools', 'marshal', 'math', 'posix', 'pyexpat', 'select', 'sys', 'time', 'unicodedata', 'xxsubtype')",
+      "sys.byteorder: little",
+      "sys.dont_write_bytecode: False",
+      "sys.executable: /cross-build/wasm32-wasip1/python.wasm",
+      "sys.filesystem_encoding: utf-8/surrogateescape",
+      "sys.flags: sys.flags(debug=0, inspect=0, interactive=0, optimize=0, dont_write_bytecode=0, no_user_site=0, no_site=0, ignore_environment=0, verbose=0, bytes_warning=0, quiet=0, hash_randomization=1, isolated=0, dev_mode=False, utf8_mode=1, warn_default_encoding=0, safe_path=False, int_max_str_digits=4300)",
+      "sys.float_info: sys.float_info(max=1.7976931348623157e+308, max_exp=1024, max_10_exp=308, min=2.2250738585072014e-308, min_exp=-1021, min_10_exp=-307, dig=15, mant_dig=53, epsilon=2.220446049250313e-16, radix=2, rounds=1)",
+      "sys.float_repr_style: short",
+      "sys.getrecursionlimit: 1000",
+      "sys.hash_info: sys.hash_info(width=32, modulus=2147483647, inf=314159, nan=0, imag=1000003, algorithm='fnv', hash_bits=32, seed_bits=64, cutoff=0)",
+      "sys.hexversion: 51315440",
+      "sys.implementation: namespace(name='cpython', cache_tag='cpython-315', version=sys.version_info(major=3, minor=15, micro=2, releaselevel='final', serial=0), hexversion=51315440, _multiarch='wasm32-wasi', supports_isolated_interpreters=False)",
+      "sys.int_info: sys.int_info(bits_per_digit=30, sizeof_digit=4, default_max_str_digits=4300, str_digits_check_threshold=640)",
+      "sys.is_remote_debug_enabled: False",
+      "sys.maxsize: 2147483647",
+      "sys.maxunicode: 1114111",
+      "sys.path: ['/', '/usr/local/lib/python315.zip', '/Lib', '/cross-build/wasm32-wasip1/build/lib.wasi-wasm32-3.15']",
+      "sys.platform: wasi",
+      "sys.platlibdir: lib",
+      "sys.prefix: /usr/local",
+      "sys.stderr.encoding: utf-8/backslashreplace",
+      "sys.stdin.encoding: utf-8/surrogateescape",
+      "sys.stdout.encoding: utf-8/surrogateescape",
+      "sys.thread_info: sys.thread_info(name='pthread', lock='pymutex', version=None)",
+      "sys.version: 3.15.2 (main, Nov 24 2026, 12:09:50) [Clang 22.1.0-wasi-sdk (https://github.com/llvm/llvm-project 4434dabb69916856b82",
+      "sys.version_info: sys.version_info(major=3, minor=15, micro=2, releaselevel='final', serial=0)",
+      "sysconfig.is_python_build: True",
+      "sysconfig[ALT_SOABI]: 0",
+      "sysconfig[CC]: /home/runner/.cache/sandboxd-interp/wasi-sdk-33/bin/clang",
+      "sysconfig[CFLAGS]: -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fno-strict-overflow -Wsign-compare -Wunreachable-code -DNDEBUG -g -O3 -Wall",
+      "sysconfig[CONFIG_ARGS]: '--host=wasm32-wasip1' '--build=x86_64-pc-linux-gnu' '--with-build-python=/home/runner/.cache/sandboxd-interp/cpython-3.15.2/cross-build/x86_64-pc-linux-gnu/python' 'build_alias=x86_64-pc-linux-gnu' 'host_alias=wasm32-wasip1' 'PKG_CONFIG_PATH=' 'PKG_CONFIG_LIBDIR=/home/runner/.cache/sandboxd-interp/wasi-sdk-33/share/wasi-sysroot/lib/pkgconfig:/home/runner/.cache/sandboxd-interp/wasi-sdk-33/share/wasi-sysroot/share/pkgconfig' 'CC=/home/runner/.cache/sandboxd-interp/wasi-sdk-33/bin/clang' 'CPP=/home/runner/.cache/sandboxd-interp/wasi-sdk-33/bin/clang-cpp'",
+      "sysconfig[HOSTRUNNER]: /home/runner/.cache/sandboxd-interp/wasmtime-50.0.2/wasmtime run --argv0 /cross-build/wasm32-wasip1/python.wasm --dir /home/runner/.cache/sandboxd-interp/cpython-3.15.2::/ --config /home/runner/.cache/sandboxd-interp/cpython-3.15.2/Platforms/WASI/wasmtime.toml",
+      "sysconfig[HOST_GNU_TYPE]: wasm32-unknown-wasip1",
+      "sysconfig[MACHDEP]: wasi",
+      "sysconfig[MULTIARCH]: wasm32-wasi",
+      "sysconfig[OPT]: -DNDEBUG -g -O3 -Wall",
+      "sysconfig[PGO_PROF_USE_FLAG]: -fprofile-instr-use=\"$(shell pwd)/code.profclangd\"",
+      "sysconfig[PY_CFLAGS]: -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fno-strict-overflow -Wsign-compare -Wunreachable-code -DNDEBUG -g -O3 -Wall",
+      "sysconfig[PY_CFLAGS_NODIST]: -std=c11 -Wextra -Wno-unused-parameter -Wno-int-conversion -Wno-missing-field-initializers -Wstrict-prototypes -Werror=implicit-function-declaration -fvisibility=hidden -I../../Include/internal -I../../Include/internal/mimalloc",
+      "sysconfig[PY_CORE_LDFLAGS]: -z stack-size=16777216 -Wl,--stack-first -Wl,--initial-memory=41943040",
+      "sysconfig[PY_LDFLAGS_NODIST]: -z stack-size=16777216 -Wl,--stack-first -Wl,--initial-memory=41943040",
+      "sysconfig[PY_STDMODULE_CFLAGS]: -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fno-strict-overflow -Wsign-compare -Wunreachable-code -DNDEBUG -g -O3 -Wall -std=c11 -Wextra -Wno-unused-parameter -Wno-int-conversion -Wno-missing-field-initializers -Wstrict-prototypes -Werror=implicit-function-declaration -fvisibility=hidden -I../../Include/internal -I../../Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I../../Include",
+      "sysconfig[Py_DEBUG]: 0",
+      "sysconfig[Py_ENABLE_SHARED]: 0",
+      "sysconfig[Py_GIL_DISABLED]: 0",
+      "sysconfig[Py_REMOTE_DEBUG]: 1",
+      "sysconfig[SHELL]: /bin/sh -e",
+      "sysconfig[SOABI]: cpython-315-wasm32-wasi",
+      "sysconfig[SOABI_PLATFORM]: wasm32-wasi",
+      "sysconfig[TEST_MODULES]: yes",
+      "sysconfig[abs_builddir]: /home/runner/.cache/sandboxd-interp/cpython-3.15.2/cross-build/wasm32-wasip1",
+      "sysconfig[abs_srcdir]: /home/runner/.cache/sandboxd-interp/cpython-3.15.2/cross-build/wasm32-wasip1/../..",
+      "sysconfig[prefix]: /usr/local",
+      "sysconfig[srcdir]: /",
+      "tempfile.gettempdir: /",
+      "time.altzone: 0",
+      "time.daylight: 0",
+      "time.get_clock_info(monotonic): namespace(implementation='clock_gettime(CLOCK_MONOTONIC)', monotonic=True, adjustable=False, resolution=1e-09)",
+      "time.get_clock_info(perf_counter): namespace(implementation='clock_gettime(CLOCK_MONOTONIC)', monotonic=True, adjustable=False, resolution=1e-09)",
+      "time.get_clock_info(process_time): namespace(implementation='clock()', monotonic=True, adjustable=False, resolution=1e-09)",
+      "time.get_clock_info(time): namespace(implementation='clock_gettime(CLOCK_REALTIME)', monotonic=False, adjustable=True, resolution=1e-09)",
+      "time.time: 1795522194.0689273",
+      "time.timezone: 0",
+      "time.tzname: ('UTC', 'UTC')",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "\ud83d\udcc1 /home/runner/.cache/sandboxd-interp/cpython-3.15.2/cross-build/wasm32-wasip1",
+      "\ud83c\udf0e Environment changes:",
+      "\u276f  make --jobs 4 all",
+      "\u276f  /home/runner/.cache/sandboxd-interp/cpython-3.15.2/cross-build/wasm32-wasip1/python.sh --version",
+      "\ud83c\udf89 Use `python.sh` to run CPython w/ the WASI host specified by --host-runner",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "\ud83d\udcc1 /home/runner/.cache/sandboxd-interp/cpython-3.15.2/cross-build/wasm32-wasip1",
+      "\u276f  make pythoninfo",
       ">> CPython WASI build dir: /home/runner/.cache/sandboxd-interp/cpython-3.15.2/cross-build/wasm32-wasip1",
-      "-rwxr-xr-x 1 runner runner 8111041 Nov 20 07:12 /home/runner/work/Agent_SandBox/Agent_SandBox/dist/sandboxd-python.wasm"
+      "-rwxr-xr-x 1 runner runner 8111041 Nov 24 12:09 /home/runner/work/Agent_SandBox/Agent_SandBox/dist/sandboxd-python.wasm"
     ],
     "quickjs_build_log_tail": [
       ">> wasi-sdk: /home/runner/.cache/sandboxd-interp/wasi-sdk-33",
+      ">> downloading quickjs: https://github.com/quickjs-ng/quickjs/archive/refs/tags/v0.18.0.tar.gz",
       "-- The C compiler identification is Clang 22.1.0",
       "-- Detecting C compiler ABI info",
       "-- Detecting C compiler ABI info - done",
@@ -480,17 +628,46 @@
       "--   QJS_ENABLE_GC_STRESS: OFF",
       "-- Building in Release mode",
       "-- Building with Clang 22.1.0 on WASI-1",
+      "-- Performing Test COMPILER_SUPPORTS_Wall",
+      "-- Performing Test COMPILER_SUPPORTS_Wall - Success",
+      "-- Performing Test COMPILER_SUPPORTS_Wextra",
+      "-- Performing Test COMPILER_SUPPORTS_Wextra - Success",
       "-- Performing Test COMPILER_SUPPORTS_Wformat=2",
       "-- Performing Test COMPILER_SUPPORTS_Wformat=2 - Success",
+      "-- Performing Test COMPILER_SUPPORTS_Wnoimplicitfallthrough",
+      "-- Performing Test COMPILER_SUPPORTS_Wnoimplicitfallthrough - Success",
+      "-- Performing Test COMPILER_SUPPORTS_Wnosigncompare",
+      "-- Performing Test COMPILER_SUPPORTS_Wnosigncompare - Success",
+      "-- Performing Test COMPILER_SUPPORTS_Wnomissingfieldinitializers",
+      "-- Performing Test COMPILER_SUPPORTS_Wnomissingfieldinitializers - Success",
+      "-- Performing Test COMPILER_SUPPORTS_Wnounusedparameter",
+      "-- Performing Test COMPILER_SUPPORTS_Wnounusedparameter - Success",
+      "-- Performing Test COMPILER_SUPPORTS_Wnounusedbutsetvariable",
+      "-- Performing Test COMPILER_SUPPORTS_Wnounusedbutsetvariable - Success",
+      "-- Performing Test COMPILER_SUPPORTS_Wnounusedresult",
+      "-- Performing Test COMPILER_SUPPORTS_Wnounusedresult - Success",
+      "-- Performing Test COMPILER_SUPPORTS_Wnostringoptruncation",
+      "-- Performing Test COMPILER_SUPPORTS_Wnostringoptruncation - Failed",
+      "-- Performing Test COMPILER_SUPPORTS_Wnoarraybounds",
+      "-- Performing Test COMPILER_SUPPORTS_Wnoarraybounds - Success",
+      "-- Performing Test COMPILER_SUPPORTS_funsignedchar",
+      "-- Performing Test COMPILER_SUPPORTS_funsignedchar - Success",
       "--   QJS_BUILD_LIBC: OFF",
-      "-- Configuring done (0.8s)",
+      "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD",
+      "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed",
+      "-- Looking for pthread_create in pthreads",
+      "-- Looking for pthread_create in pthreads - not found",
+      "-- Looking for pthread_create in pthread",
+      "-- Looking for pthread_create in pthread - found",
+      "-- Found Threads: TRUE",
+      "-- Configuring done (1.8s)",
       "-- Generating done (0.0s)",
       "-- Build files have been written to: /home/runner/.cache/sandboxd-interp/quickjs-0.18.0/build-wasi",
       "[  9%] Building C object CMakeFiles/qjs.dir/dtoa.c.obj",
       "clang: warning: argument '--target=wasm32-wasi' is deprecated, use --target=wasm32-wasip1 instead [-Wdeprecated]",
-      "[ 18%] Building C object CMakeFiles/qjs.dir/libunicode.c.obj",
+      "[ 27%] Building C object CMakeFiles/qjs.dir/libunicode.c.obj",
       "clang: warning: argument '--target=wasm32-wasi' is deprecated, use --target=wasm32-wasip1 instead [-Wdeprecated]",
-      "[ 27%] Building C object CMakeFiles/qjs.dir/libregexp.c.obj",
+      "[ 18%] Building C object CMakeFiles/qjs.dir/libregexp.c.obj",
       "clang: warning: argument '--target=wasm32-wasi' is deprecated, use --target=wasm32-wasip1 instead [-Wdeprecated]",
       "[ 36%] Building C object CMakeFiles/qjs.dir/quickjs.c.obj",
       "clang: warning: argument '--target=wasm32-wasi' is deprecated, use --target=wasm32-wasip1 instead [-Wdeprecated]",
@@ -509,10 +686,10 @@
       "[100%] Linking C executable qjs",
       "clang: warning: argument '--target=wasm32-wasi' is deprecated, use --target=wasm32-wasip1 instead [-Wdeprecated]",
       "[100%] Built target qjs_exe",
-      "-rwxr-xr-x 1 runner runner 1542016 Nov 20 07:13 /home/runner/work/Agent_SandBox/Agent_SandBox/dist/sandboxd-qjs.wasm"
+      "-rwxr-xr-x 1 runner runner 1542016 Nov 24 12:10 /home/runner/work/Agent_SandBox/Agent_SandBox/dist/sandboxd-qjs.wasm"
     ],
     "spike_log_tail": [
-      "    \"snapshot_print_ms_median\": 2.33042,",
+      "    \"snapshot_print_ms_median\": 2.032751,",
       "    \"snapshot_sections\": [",
       "      [",
       "        1,",
@@ -552,7 +729,7 @@
       "      ],",
       "      [",
       "        11,",
-      "        8798441",
+      "        8797739",
       "      ],",
       "      [",
       "        0,",
@@ -567,9 +744,9 @@
       "        164",
       "      ]",
       "    ],",
-      "    \"speedup\": 13.879064717947834,",
-      "    \"upstream_print_fuel\": 54759340,",
-      "    \"upstream_print_ms_median\": 32.344049999999996",
+      "    \"speedup\": 13.362028600650053,",
+      "    \"upstream_print_fuel\": 54726455,",
+      "    \"upstream_print_ms_median\": 27.161676999999997",
       "  }",
       "}"
     ]
