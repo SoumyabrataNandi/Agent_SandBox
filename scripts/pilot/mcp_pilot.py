@@ -97,7 +97,7 @@ class McpClient:
                 self.notifications.append(msg)
             # Anything else (a server→client request) is unexpected for this pilot; ignore it.
 
-    def call_tool(self, name: str, args: dict, *, progress: str | None = None, timeout: float = 120) -> dict:
+    def call_tool(self, name: str, args: dict, *, progress: str | None = None, timeout: float = 900) -> dict:
         params: dict = {"name": name, "arguments": args}
         if progress:
             params["_meta"] = {"progressToken": progress}
@@ -317,7 +317,9 @@ def main() -> int:
     ap.add_argument("--sandboxd", required=True, help="path to the sandboxd binary")
     ap.add_argument("--workdir", help="scratch directory (default: a new temp dir, removed afterwards)")
     ap.add_argument("--cache-dir", help="compile/snapshot cache (default: <workdir>/cache)")
-    ap.add_argument("--startup-timeout", type=float, default=900, help="seconds for initialize (first start builds caches)")
+    ap.add_argument("--startup-timeout", type=float, default=900, help="seconds for initialize")
+    ap.add_argument("--max-initialize", type=float, default=10,
+                    help="fail if initialize takes longer (FR-ST1: it must not wait for the cache build)")
     ap.add_argument("--json", help="write results as JSON here")
     a = ap.parse_args()
 
@@ -350,6 +352,10 @@ def main() -> int:
             raise Fail(f"initialize failed: {init['error']}")
         c.notify("notifications/initialized")
         startup = time.monotonic() - t0
+        # FR-ST1 (cycle 5): the handshake is answered before the sandbox is built.
+        results.append({"scenario": "fast-initialize", "ok": startup <= a.max_initialize, "ms": round(startup * 1000),
+                        "note": f"initialize answered in {startup:.2f} s (limit {a.max_initialize:.0f} s)"})
+        ok = ok and startup <= a.max_initialize
         runs: list[tuple[str, object]] = [("handshake", lambda cl: s_handshake(cl, init))] + SCENARIOS
         for name, fn in runs:
             t = time.monotonic()
@@ -373,7 +379,7 @@ def main() -> int:
     width = max(len(r["scenario"]) for r in results)
     print(f"sandboxd MCP pilot: {exe}")
     if startup is not None:
-        print(f"startup (initialize answered): {startup:.1f} s")
+        print(f"initialize answered: {startup:.2f} s; the first tool call includes the cache build on a cold cache")
     for r in results:
         mark = "PASS" if r["ok"] else "FAIL"
         print(f"  {mark}  {r['scenario']:<{width}}  {r['ms']:>6} ms  {r['note']}")

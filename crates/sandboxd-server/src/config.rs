@@ -25,6 +25,17 @@ struct Raw {
     runtime: RawRuntime,
     #[serde(default)]
     network: RawNetworkCfg,
+    #[serde(default)]
+    packages: RawPackages,
+}
+
+/// `[packages]` (cycle 5, FR-PK1): the operator's wheelhouse.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawPackages {
+    dir: Option<PathBuf>,
+    #[serde(default)]
+    sha256: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -152,6 +163,8 @@ pub struct ServerConfig {
     pub pooling: sandboxd_runtime::PoolingMode,
     /// `[runtime] snapshots` (cycle 3, FR-S1).
     pub snapshots: sandboxd_runtime::SnapshotMode,
+    /// `[packages]` (cycle 5, FR-PK1): pure-Python wheels for Python runs.
+    pub packages: Option<sandboxd_runtime::PackageConfig>,
 }
 
 impl Default for ServerConfig {
@@ -172,6 +185,7 @@ impl Default for ServerConfig {
             network: NetworkConfig::default(),
             pooling: sandboxd_runtime::PoolingMode::Auto,
             snapshots: sandboxd_runtime::SnapshotMode::Auto,
+            packages: None,
         }
     }
 }
@@ -234,6 +248,25 @@ impl ServerConfig {
             c.snapshots = sandboxd_runtime::SnapshotMode::parse(v)
                 .ok_or_else(|| format!("runtime.snapshots {v:?}: use auto, on or off"))?;
         }
+        c.packages = match raw.packages.dir {
+            Some(dir) => {
+                for (file, sha) in &raw.packages.sha256 {
+                    if sha.len() != 64 || !sha.chars().all(|c| c.is_ascii_hexdigit()) {
+                        return Err(format!(
+                            "packages.sha256.{file:?}: expected 64 hex characters"
+                        ));
+                    }
+                }
+                Some(sandboxd_runtime::PackageConfig {
+                    dir: abs(dir),
+                    sha256: raw.packages.sha256,
+                })
+            }
+            None if !raw.packages.sha256.is_empty() => {
+                return Err("packages.sha256 needs packages.dir".into());
+            }
+            None => None,
+        };
         if let Some(n) = raw.runtime.max_sessions {
             if n > 10_000 {
                 return Err(format!("runtime.max_sessions {n}: at most 10000"));
@@ -374,6 +407,26 @@ proxy = \"socks5://x\"
         );
         let c = ServerConfig::from_toml("[runtime]\nsnapshots = \"off\"\n", p).expect("snapshots");
         assert_eq!(c.snapshots, sandboxd_runtime::SnapshotMode::Off);
+        // [packages] (cycle 5)
+        assert_eq!(ServerConfig::default().packages, None);
+        let c = ServerConfig::from_toml("[packages]\ndir = \"wheels\"\n", p).expect("packages");
+        assert_eq!(c.packages.map(|k| k.dir), Some(p.join("wheels")));
+        let lock = format!(
+            "[packages]\ndir = \"w\"\nsha256 = {{ \"a-1-py3-none-any.whl\" = \"{}\" }}\n",
+            "ab".repeat(32)
+        );
+        assert!(ServerConfig::from_toml(&lock, p).is_ok());
+        assert!(
+            ServerConfig::from_toml(
+                "[packages]\ndir = \"w\"\nsha256 = { \"x.whl\" = \"zz\" }\n",
+                p
+            )
+            .is_err()
+        );
+        assert!(
+            ServerConfig::from_toml("[packages]\nsha256 = { \"x.whl\" = \"zz\" }\n", p).is_err()
+        );
+        assert!(ServerConfig::from_toml("[packages]\nfolder = \"w\"\n", p).is_err());
         assert!(ServerConfig::from_toml("[runtime]\nsnapshots = \"sometimes\"\n", p).is_err());
         assert_eq!(ServerConfig::default().admission.max_sessions, 16);
         let c = ServerConfig::from_toml("[runtime]\nmax_sessions = 0\n", p).expect("sessions");

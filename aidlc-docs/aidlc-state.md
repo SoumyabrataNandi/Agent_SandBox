@@ -4,7 +4,7 @@
 - **Project**: sandboxd — WebAssembly sandbox for agent-generated code
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
-- **Current Phase**: Cycle 4 — CONSTRUCTION
+- **Current Phase**: Cycle 5 — CONSTRUCTION
 - **Current Stage**: Cycle 4 (ship and pilot): Cycle 4 complete: v0.1.0 tagged, draft release created (run 45398159049); owner publishes the draft
 
 ## Workspace State
@@ -133,3 +133,27 @@
 | C4-U2 MCP pilot + fixes | Done (pilot 10/10 local; CI job on Linux + Windows; F1 cold start → docs) |
 | C4-U3 Getting started, changelog, release packaging | Done |
 | C4-U4 Release v0.1.0 | Done (tag v0.1.0 → d4fe4f5; 5 targets + draft; owner publishes) |
+
+---
+
+# Cycle 5 (first start, packages, container)
+
+## Workspace State (2026-11-24)
+- **Project Type**: Brownfield (v0.1.0 tagged; CI green at d4fe4f5)
+- **Artifacts root**: `aidlc-docs/cycle-5/`
+- **Approval**: user "continue with cycle 5" + standing instruction from cycle 4 (all recommended defaults)
+
+## Stage Progress
+- [x] Requirements Analysis — Q1–Q6 all A (2026-11-24); PK1.4/1.5 amended in C5-U2
+- [x] Workflow Planning — 4 units
+- [ ] Application Design — SKIP (light; decisions in answers and unit summaries)
+- [x] Construction C5-U1..U3 — done 2026-11-25
+- [ ] C5-U4 Release v0.2.0
+
+## Cycle 5 Construction Progress
+| Unit | Status |
+|---|---|
+| C5-U1 Non-blocking MCP start-up | Done (initialize 0.06 s on a cold cache, was 22–68 s) |
+| C5-U2 Operator wheelhouse | Done (snapshot/upstream/session imports; 7 unit + 4 integration tests) |
+| C5-U3 Container image | Done (Dockerfile, entrypoint, release job; verified by the release run) |
+| C5-U4 Release v0.2.0 | Pending |

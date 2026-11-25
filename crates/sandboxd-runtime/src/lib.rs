@@ -16,6 +16,7 @@ mod cache;
 mod error;
 mod helpers;
 mod native;
+mod packages;
 mod sandbox;
 mod seams;
 mod session;
@@ -26,6 +27,7 @@ mod types;
 pub use error::RuntimeError;
 pub use helpers::{ensure_helpers, helpers_sha256};
 pub use native::{NATIVE_PACKAGES, detect as detect_native_extension};
+pub use packages::{PackageConfig, PackageError, PackageSet, Wheel, scan as scan_packages};
 pub use sandbox::{
     EPOCH_TICK, PoolStatus, PoolingMode, RuntimeConfig, Sandbox, SnapshotMode, WarmupReport,
 };

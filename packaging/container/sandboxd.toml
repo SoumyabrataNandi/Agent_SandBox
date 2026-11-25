@@ -1,0 +1,15 @@
+# Default config of the sandboxd container image. Mount your own over it, or set SANDBOXD_TOKENS
+# (see entrypoint.sh) to add bearer tokens to this one. Serving on 0.0.0.0 needs at least one token.
+policy_dir = "/etc/sandboxd/policies"
+cache_dir = "/var/cache/sandboxd"
+work_dir = "/var/lib/sandboxd/work"
+
+[server]
+listen = "0.0.0.0:8080"
+
+[audit]
+sink = "stdout"
+
+# Operator Python packages: mount a directory of pure-Python wheels and uncomment.
+# [packages]
+# dir = "/etc/sandboxd/wheels"

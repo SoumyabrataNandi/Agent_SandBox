@@ -9,6 +9,9 @@
 | `session_create` | Starts a persistent session (like a notebook kernel) under a policy that enables sessions. Returns `session_id`, `expires_at` and the idle timeout. |
 | `session_close` | Ends a session. |
 
+`sandboxd mcp` answers the MCP handshake immediately; on a cold cache, the first tool call waits
+while the interpreters are compiled (a progress message says so when the client asks for progress).
+
 The server's `instructions` tell the model the rules: no network, no pip/npm, standard library only, inputs under `/in`, outputs under `/out`, nothing persists between calls unless a session is used.
 
 ## Sessions (cycle 3)
@@ -90,6 +93,12 @@ path = "D:/sandboxd/audit.jsonl"
 #                      # cached); "off" uses the upstream interpreters
 # max_sessions = 16    # live sessions server-wide; each holds an interpreter (up to its policy's
 #                      # memory limit) until it ends
+
+# Operator Python packages (cycle 5): a directory of pure-Python wheels (py3-none-any), validated
+# at start-up and importable in Python runs unless a policy sets [python] packages = false.
+# `sandboxd packages list` checks the directory and prints a lock for [packages.sha256].
+# [packages]
+# dir = "D:/sandboxd/wheels"
 
 # Optional OTLP/HTTP export of the /metrics instruments plus one `sandboxd.run` span per run.
 # Needs a build with `cargo build --release -p sandboxd --features otel`; other builds ignore it

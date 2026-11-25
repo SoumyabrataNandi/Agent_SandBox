@@ -120,3 +120,85 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" --draft --verify-tag \
             --title "sandboxd ${GITHUB_REF_NAME}" \
             --notes-file notes.md
+
+  # FR-CI1 (cycle 5): container image from the same Linux binaries that passed the escape suite.
+  # Smoke-tested on amd64 before anything is pushed.
+  image:
+    name: container image
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write       # push to ghcr.io
+      id-token: write       # provenance attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: "*-unknown-linux-gnu"
+          path: dist
+          merge-multiple: true
+      - name: Unpack the Linux binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for pair in amd64:x86_64-unknown-linux-gnu arm64:aarch64-unknown-linux-gnu; do
+            arch="${pair%%:*}"; target="${pair#*:}"
+            mkdir -p "bin/${arch}" "unpack/${arch}"
+            tar xzf "dist/sandboxd-${GITHUB_REF_NAME}-${target}.tar.gz" -C "unpack/${arch}"
+            cp "unpack/${arch}/sandboxd-${GITHUB_REF_NAME}-${target}/sandboxd" "bin/${arch}/sandboxd"
+          done
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sandboxd" >> "$GITHUB_ENV"
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build amd64 for the smoke test
+        run: |
+          docker buildx build --platform linux/amd64 --load -t sandboxd-smoke -f packaging/container/Dockerfile .
+      - name: Smoke test (version, /healthz, one authenticated run)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm sandboxd-smoke version
+          out="$(bin/amd64/sandboxd token new --name smoke)"
+          token="$(printf '%s\n' "$out" | sed -n '2p' | tr -d ' ')"
+          hash="$(printf '%s\n' "$out" | grep -o 'sha256 = "[0-9a-f]*"' | cut -d'"' -f2)"
+          docker run -d --name smoke -p 8080:8080 -e SANDBOXD_TOKENS="smoke=${hash}" sandboxd-smoke
+          for i in $(seq 1 180); do
+            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then echo "ready after ${i}s"; break; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' smoke)" != true ]; then docker logs smoke; exit 1; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/healthz
+          r="$(curl -fsS -H "Authorization: Bearer ${token}" -d '{"language":"python","code":"print(6*7)"}' http://127.0.0.1:8080/v1/runs)"
+          echo "$r"
+          printf '%s' "$r" | python3 -c 'import json,sys; r=json.load(sys.stdin); assert r["stdout"]=="42\n", r'
+          # Unauthenticated requests are refused.
+          code="$(curl -s -o /dev/null -w '%{http_code}' -d '{"language":"python","code":"1"}' http://127.0.0.1:8080/v1/runs)"
+          [ "$code" = 401 ] || { echo "expected 401, got $code"; exit 1; }
+          # Not root inside the container.
+          [ "$(docker exec smoke id -u)" = 10001 ]
+          docker rm -f smoke
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and push (amd64 + arm64)
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packaging/container/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ env.VERSION }}
+            ${{ env.IMAGE }}:latest
+          labels: org.opencontainers.image.version=${{ env.VERSION }}
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

@@ -551,3 +551,15 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **Timestamp**: 2026-11-24
 **User Input**: "we got 3 PR, if needed marge them"; later "continue"
 **AI Response**: C4-U2 (MCP pilot, 10/10; finding F1 first-start blocks initialize → `cache warm` in the docs; F2 isError kept by design) and C4-U3 (GETTING_STARTED, CHANGELOG, release notes from CHANGELOG) were pushed; CI green at 809e13e with the pilot on Linux and Windows. Dependabot PRs #2 (toml/zip/clap), #3 (sha2 0.11) and #1 (actions majors) were merged after their CI passed, and the workspace compiles locally. A git push needed a fresh GitHub sign-in (Git Credential Manager), which the user completed. CI on main d4fe4f5 is green. Tagged v0.1.0; release run 45398159049 is green on all 5 targets with the escape suite on each; a draft release was created. Owner actions: publish the draft; enable private vulnerability reporting.
+
+---
+
+## Cycle 5 inception and C5-U1..U3
+**Timestamp**: 2026-11-24 to 2026-11-25
+**User Input**: "continue with cycle 5"
+**AI Response**: Cycle 5 scope (all recommended defaults, per the standing instruction): non-blocking MCP start-up, operator pure-Python wheelhouse, container image, v0.2.0.
+- C5-U1: SandboxMcp::deferred + StartupHandle; tools wait for the build (progress message; STARTUP_FAILED on failure); `sandboxd mcp` builds on a blocking thread (on a runtime worker, the build starved stdio: initialize took 22 s on a cold cache; now 0.06 s). Server tests st1_* added; pilot gains a fast-initialize check.
+- C5-U2: [packages] dir + sha256 lock; [python] packages policy key. Wheels validated (pure tags, no native/platlib/symlink/absolute/traversal entries, size/entry caps, strict lock, no overlap, no helper clash) and extracted with a copy of the guest helpers; the merged dir is mounted in place of the helpers, because the snapshot interpreter's sys.path is fixed at snapshot time (requirement PK1.4 amended; no interpreter rebuild). Upstream one-shot runs with packages use the boot launcher (found by the tests). Bytecode compiled in the sandbox. `sandboxd packages list`; list_policies and the MCP instructions mention packages. Threat T24, risk R14.
+- C5-U3: packaging/container (Dockerfile on debian:trixie-slim, uid 10001, entrypoint with SANDBOXD_TOKENS), .dockerignore, and a release.yml image job (smoke test, then multi-arch push to ghcr.io with provenance).
+- Version 0.2.0; CHANGELOG, GETTING_STARTED §8–9, README, MCP.md, THREAT_MODEL.
+- Local: clippy clean; full workspace suite passes, including the escape suite (6+17+11); MCP pilot 11/11 on a cold cache. One unexplained first-run failure of cli ac7_mcp_stdio_child_process did not reproduce in 4 reruns.

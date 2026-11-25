@@ -22,7 +22,7 @@ mod sessions;
 
 pub use auth::{Principal, TokenSet, generate_token, hash_token};
 pub use config::{AuditDest, NetworkConfig, ServerConfig};
-pub use mcp::{INSTRUCTIONS, SandboxMcp};
+pub use mcp::{INSTRUCTIONS, SandboxMcp, StartupHandle};
 pub use metrics::Metrics;
 pub use otel::Telemetry;
 pub use service::{AdmissionConfig, RunService, ServiceError};

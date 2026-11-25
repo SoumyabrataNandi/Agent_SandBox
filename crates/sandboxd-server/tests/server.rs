@@ -562,3 +562,123 @@ async fn ac7_mcp_over_http_with_token_and_principal() {
     assert!(texts(&r).contains("42"), "{}", texts(&r));
     let _ = client.cancel().await;
 }
+
+// ---------- C5-U1: deferred start-up (FR-ST1) ----------
+
+/// The protocol is served before the sandbox is ready; tool calls wait, then run.
+#[tokio::test(flavor = "multi_thread")]
+async fn st1_deferred_startup_waits_then_runs() {
+    let (server, startup) = SandboxMcp::deferred("mcp-test");
+    let (server_io, client_io) = tokio::io::duplex(1 << 16);
+    tokio::spawn(async move {
+        if let Ok(s) = server.serve(server_io).await {
+            let _ = s.waiting().await;
+        }
+    });
+    let collector = ProgressCollector::default();
+    // ST1.1: the handshake and tools/list complete while nothing is built.
+    let client = tokio::time::timeout(Duration::from_secs(5), collector.clone().serve(client_io))
+        .await
+        .expect("handshake before the sandbox exists")
+        .expect("client");
+    let tools = client.list_all_tools().await.expect("tools");
+    assert!(tools.iter().any(|t| t.name == "run_code"));
+
+    // ST1.2: a call with a progress token waits and says why.
+    let params = CallToolRequestParams::new("run_code").with_arguments(args(
+        json!({"language": "python", "code": "print('after start-up')"}),
+    ));
+    let handle = client
+        .send_cancellable_request(
+            ClientRequest::CallToolRequest(McpRequest::new(params)),
+            PeerRequestOptions::no_options(),
+        )
+        .await
+        .expect("send");
+    let waiting = tokio::spawn(handle.await_response());
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(!waiting.is_finished(), "the call must wait for start-up");
+    let progress = collector.0.lock().map(|v| v.clone()).unwrap_or_default();
+    assert!(
+        progress.iter().any(|m| m.contains("sandboxd is starting")),
+        "progress: {progress:?}"
+    );
+
+    startup.ready(service_with(
+        Arc::new(MemorySink::default()),
+        AdmissionConfig::default(),
+    ));
+    let resp = tokio::time::timeout(Duration::from_secs(60), waiting)
+        .await
+        .expect("call completes after start-up")
+        .expect("join")
+        .expect("response");
+    let result = match resp {
+        rmcp::model::ServerResult::CallToolResult(r) => r,
+        other => panic!("unexpected {other:?}"),
+    };
+    assert!(
+        texts(&result).contains("after start-up"),
+        "{}",
+        texts(&result)
+    );
+
+    // Later calls go straight through.
+    let r = client
+        .call_tool(CallToolRequestParams::new("list_policies"))
+        .await
+        .expect("call");
+    assert_ne!(r.is_error, Some(true), "{r:?}");
+}
+
+/// ST1.3: a failed start-up is reported to every tool call; the protocol stays up.
+#[tokio::test(flavor = "multi_thread")]
+async fn st1_startup_failure_is_reported() {
+    let (server, startup) = SandboxMcp::deferred("mcp-test");
+    let (server_io, client_io) = tokio::io::duplex(1 << 16);
+    tokio::spawn(async move {
+        if let Ok(s) = server.serve(server_io).await {
+            let _ = s.waiting().await;
+        }
+    });
+    let client = ().serve(client_io).await.expect("client");
+    startup.failed("policy dir: no such directory");
+    for (tool, a) in [
+        (
+            "run_code",
+            json!({"language": "python", "code": "print(1)"}),
+        ),
+        ("list_policies", json!({})),
+        ("session_create", json!({"language": "python"})),
+    ] {
+        let r = client
+            .call_tool(CallToolRequestParams::new(tool).with_arguments(args(a)))
+            .await
+            .expect("call");
+        assert_eq!(r.is_error, Some(true), "{tool}");
+        let t = texts(&r);
+        assert!(
+            t.contains("STARTUP_FAILED") && t.contains("no such directory"),
+            "{tool}: {t}"
+        );
+    }
+
+    // A dropped handle (the start-up task died) fails calls instead of hanging them.
+    let (server, startup) = SandboxMcp::deferred("mcp-test");
+    let (server_io, client_io) = tokio::io::duplex(1 << 16);
+    tokio::spawn(async move {
+        if let Ok(s) = server.serve(server_io).await {
+            let _ = s.waiting().await;
+        }
+    });
+    let client = ().serve(client_io).await.expect("client");
+    drop(startup);
+    let r = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.call_tool(CallToolRequestParams::new("list_policies")),
+    )
+    .await
+    .expect("no hang")
+    .expect("call");
+    assert!(texts(&r).contains("STARTUP_FAILED"), "{}", texts(&r));
+}

@@ -34,8 +34,8 @@ cd sandboxd-<version>-<target>
 ./sandboxd version
 ./sandboxd cache warm      # once: compiles the interpreters and builds the snapshots (~20–70 s)
 ```
-**Run `cache warm` before connecting an MCP client.** Without it, the first `sandboxd mcp` start
-builds the cache before answering, and a client with a 30 s connect timeout can give up.
+**Run `cache warm` once after installing.** Without it, the first tool call after starting
+`sandboxd mcp` waits while the cache is built (the MCP connection itself is immediate).
 
 The cache lives in your OS cache directory (`sandboxd cache path` prints it); it is under 100 MB.
 Set `cache_dir` in a config file to put it elsewhere (for example on a larger drive).
@@ -115,14 +115,50 @@ mode = "ro"
 Sessions (persistent interpreters) need `[session] enabled = true`; network access needs an allowlist.
 See [MCP.md](MCP.md#sessions-cycle-3) and [NETWORK.md](NETWORK.md).
 
+## 8. Python packages (optional)
+Agents can't `pip install`. You can give them **pure-Python** packages from a directory of wheels:
+```bash
+mkdir wheels && pip download --only-binary=:all: --no-deps -d wheels tabulate python-dateutil six
+sandboxd packages list --config sandboxd.toml      # validates, and prints a lock you can paste
+```
+```toml
+[packages]
+dir = "wheels"
+# Optional but recommended: pin every wheel (sandboxd refuses to start on a mismatch).
+# [packages.sha256]
+# "tabulate-0.9.0-py3-none-any.whl" = "<sha256>"
+```
+Only wheels tagged `py3-none-any` (or `py2.py3-none-any`) are accepted; anything with native code
+is refused at start-up, naming the file. Packages are read-only, come after the standard library on
+`sys.path`, and are available in every Python run unless a policy sets `[python] packages = false`.
+`list_policies` tells agents which packages exist.
+
+## 9. Container image
+Each release also publishes `ghcr.io/soumyabratanandi/sandboxd:<version>` (linux/amd64 and
+linux/arm64). It runs `sandboxd serve` on port 8080 as a non-root user, with the audit log on stdout.
+```bash
+sandboxd token new --name my-agent          # any sandboxd binary, or: docker run --rm <image> token new --name my-agent
+docker run -d -p 8080:8080 \
+  -e SANDBOXD_TOKENS="my-agent=<sha256 printed above>" \
+  -v sandboxd-cache:/var/cache/sandboxd \
+  ghcr.io/soumyabratanandi/sandboxd:<version>
+curl http://127.0.0.1:8080/healthz          # ready once the cache is built (first start: about 20-60 s)
+```
+- Keep the cache volume so restarts skip the build.
+- Your own config: mount it at `/etc/sandboxd/sandboxd.toml` (and policies at `/etc/sandboxd/policies`,
+  wheels anywhere you point `[packages] dir` to); then don't set `SANDBOXD_TOKENS`.
+- `--read-only` works with `--tmpfs /tmp --tmpfs /var/lib/sandboxd/work` and the cache volume.
+- Put TLS in front of it (ingress or reverse proxy) before exposing it beyond the host.
+
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| The MCP client says the server failed to start or timed out on first use | Run `sandboxd cache warm` once, then reconnect. In Claude Code you can also raise the connect timeout: `MCP_TIMEOUT=120000 claude`. |
+| The first tool call takes a while | Since 0.2.0 the MCP server connects at once and the first call waits for the cache build. Run `sandboxd cache warm` after installing to avoid that wait. |
 | `UNSUPPORTED_NATIVE_EXTENSION` | NumPy, pandas and other native extensions don't run in WebAssembly. Use the standard library (`csv`, `statistics`, `json`, `decimal`). |
 | `POLICY_NOT_FOUND` | The name isn't in `policy_dir`; `sandboxd policy list` shows what's loaded. |
 | `SESSION_NOT_FOUND` | The session ended (idle timeout, limit, close or server restart) or belongs to another token. Create a new one. |
 | A run ends with `limits hit: wall_clock` or `fuel` | It ran longer than the policy allows. Raise the limit in the policy (agents can't raise it themselves). |
+| `packages: <file>: ...` at start-up | A wheel in `[packages] dir` was refused (native code, not `py3-none-any`, unsafe entries, or a lock mismatch). Remove or replace it; `sandboxd packages list` checks the directory. |
 | Low disk space | `sandboxd cache clear` removes the cache (rebuilt on next use). Set `cache_dir` and `work_dir` to another drive. |
 
 Security problems: please follow [SECURITY.md](../SECURITY.md), not public issues.

@@ -1,0 +1,7 @@
+# Container build context (packaging/container/Dockerfile): only bin/, packaging/ and the notices are used.
+*
+!bin/
+!packaging/container/
+!LICENSE
+!NOTICE
+!THIRD_PARTY_NOTICES.md

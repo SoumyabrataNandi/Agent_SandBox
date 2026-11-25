@@ -222,6 +222,19 @@ impl Default for SessionPolicy {
     }
 }
 
+/// Python section (cycle 5, FR-PK1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PythonPolicy {
+    /// Mount the operator's wheelhouse packages (`[packages]` in the server config) in Python
+    /// runs. Default `true`; has no effect when the server has no wheelhouse.
+    pub packages: bool,
+}
+impl Default for PythonPolicy {
+    fn default() -> Self {
+        Self { packages: true }
+    }
+}
+
 /// Audit section.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AuditPolicy {
@@ -238,6 +251,7 @@ pub struct PolicySpec {
     pub env: BTreeMap<String, String>,
     pub network: NetworkPolicy,
     pub session: SessionPolicy,
+    pub python: PythonPolicy,
     pub audit: AuditPolicy,
 }
 
@@ -415,6 +429,7 @@ impl Policy {
                 env: BTreeMap::new(),
                 network: NetworkPolicy::default(),
                 session: SessionPolicy::default(),
+                python: PythonPolicy::default(),
                 audit: AuditPolicy::default(),
             },
             origin: "<built-in>".into(),
@@ -683,6 +698,10 @@ impl Policy {
     /// Session section.
     pub fn session(&self) -> &SessionPolicy {
         &self.spec.session
+    }
+    /// Python section (cycle 5).
+    pub fn python(&self) -> &PythonPolicy {
+        &self.spec.python
     }
     /// Audit section.
     pub fn audit(&self) -> &AuditPolicy {
@@ -1163,6 +1182,14 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
             .unwrap_or(sd.max_sessions),
     };
 
+    let python = PythonPolicy {
+        packages: raw
+            .python
+            .unwrap_or_default()
+            .packages
+            .unwrap_or(PythonPolicy::default().packages),
+    };
+
     let audit = AuditPolicy {
         log_code: raw.audit.unwrap_or_default().log_code.unwrap_or(false),
     };
@@ -1183,6 +1210,7 @@ fn validate(raw: RawPolicy, origin: &str, opts: &LoadOptions) -> Result<Policy, 
             env,
             network,
             session,
+            python,
             audit,
         },
         origin: origin.into(),

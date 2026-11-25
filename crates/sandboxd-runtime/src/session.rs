@@ -497,7 +497,7 @@ impl Sandbox {
         let fs = RunFs::create(&cfg.vfs, &policy, run_id, opts.files, stdlib, audit.clone())
             .and_then(RunFs::with_code_dir)
             .and_then(RunFs::with_work)
-            .and_then(|f| f.with_helpers(&inner.helpers))
+            .and_then(|f| f.with_helpers(inner.helpers_for(lang, &policy)))
             .map_err(vfs_error)?;
         let ids = fs.call_ids();
         ids.set(run_id, Some(id.clone()));

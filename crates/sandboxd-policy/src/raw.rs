@@ -17,6 +17,7 @@ pub(crate) struct RawPolicy {
     pub env: Option<BTreeMap<String, String>>,
     pub network: Option<RawNetwork>,
     pub session: Option<RawSession>,
+    pub python: Option<RawPython>,
     pub audit: Option<RawAudit>,
 }
 
@@ -95,6 +96,12 @@ pub(crate) struct RawSession {
     pub max_lifetime: Option<Quantity>,
     pub max_calls: Option<u32>,
     pub max_sessions: Option<u32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RawPython {
+    pub packages: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]

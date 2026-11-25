@@ -52,6 +52,8 @@ pub struct RuntimeConfig {
     pub pool_slots: u32,
     /// Pre-initialised interpreters (cycle 3, FR-S1).
     pub snapshots: SnapshotMode,
+    /// Operator wheelhouse mounted in Python runs (cycle 5, FR-PK1). `None`: stdlib only.
+    pub packages: Option<crate::packages::PackageConfig>,
 }
 
 /// Whether runs start from pre-initialised interpreter snapshots (FR-S1, ADR-C3-2).
@@ -128,6 +130,7 @@ impl Default for RuntimeConfig {
             pooling: PoolingMode::Auto,
             pool_slots: 64,
             snapshots: SnapshotMode::Auto,
+            packages: None,
         }
     }
 }
@@ -152,6 +155,8 @@ pub struct WarmupReport {
     pub snapshot_floor_javascript: u64,
     /// `SnapshotMode::Auto` couldn't build a snapshot, and why.
     pub snapshot_fallback: Option<String>,
+    /// Operator packages in use (cycle 5): wheel count and set hash.
+    pub packages: Option<(usize, String)>,
 }
 
 /// Linear-memory limiter (U4 design §4).
@@ -218,11 +223,29 @@ pub(crate) struct Inner {
     pub(crate) js_snap: Option<Snap>,
     pub(crate) stdlib: PathBuf,
     pub(crate) helpers: PathBuf,
+    /// Extracted operator packages (cycle 5).
+    pub(crate) packages: Option<crate::packages::PackageSet>,
     /// One permit per pool slot (pooling only): runs wait instead of failing when all are used.
     pub(crate) slots: Option<(u32, Arc<tokio::sync::Semaphore>)>,
     pub(crate) cfg: RuntimeConfig,
     pub(crate) audit: Arc<dyn AuditSink>,
     _ticker: Ticker,
+}
+
+impl Inner {
+    /// The helper directory to mount for this run (FR-PK1.4/1.5): the merged helpers + packages
+    /// for Python runs whose policy doesn't opt out, otherwise the plain helpers.
+    pub(crate) fn helpers_for(&self, lang: Language, policy: &Policy) -> &std::path::Path {
+        match &self.packages {
+            Some(p) if self.uses_packages(lang, policy) => &p.dir,
+            _ => &self.helpers,
+        }
+    }
+
+    /// Whether this run gets the operator packages.
+    pub(crate) fn uses_packages(&self, lang: Language, policy: &Policy) -> bool {
+        self.packages.is_some() && lang == Language::Python && policy.python().packages
+    }
 }
 
 /// Shared, cloneable handle to the engine and prepared interpreters.
@@ -330,6 +353,26 @@ impl Sandbox {
         } else {
             false
         };
+        // FR-PK1: after the helper bytecode, which the merged directory copies. A bad wheelhouse
+        // stops start-up (the error names the wheel).
+        let packages = match &cfg.packages {
+            Some(pc) => Some(
+                crate::packages::prepare(
+                    pc,
+                    &cfg.vfs.cache_dir,
+                    &helpers,
+                    &crate::helpers::helpers_sha256(),
+                )
+                .map_err(|e| RuntimeError::Io(e.to_string()))?,
+            ),
+            None => None,
+        };
+        // Not fatal: packages then compile from source on each import.
+        if let Some(p) = &packages
+            && cfg.precompile_stdlib
+        {
+            let _ = crate::cache::ensure_package_bytecode(&engine, &py_mod, &stdlib, &p.dir).await;
+        }
 
         let mut linker: Linker<RunState> = Linker::new(&engine);
         p1::add_to_linker(&mut linker, |s: &mut RunState| &mut s.interposer)
@@ -430,6 +473,7 @@ impl Sandbox {
             snapshot_floor_python: py_snap.as_ref().map_or(0, |s| s.floor),
             snapshot_floor_javascript: js_snap.as_ref().map_or(0, |s| s.floor),
             snapshot_fallback,
+            packages: packages.as_ref().map(|p| (p.wheels.len(), p.hash.clone())),
         };
         Ok((
             Sandbox {
@@ -441,6 +485,7 @@ impl Sandbox {
                     js_snap,
                     stdlib,
                     helpers,
+                    packages,
                     slots: pool.map(|n| (n, Arc::new(tokio::sync::Semaphore::new(n as usize)))),
                     cfg,
                     audit,
@@ -512,6 +557,11 @@ impl Sandbox {
     }
 
     /// Pool occupancy, or `None` without pooling.
+    /// The operator packages in use (cycle 5), if a wheelhouse is configured.
+    pub fn packages(&self) -> Option<&crate::packages::PackageSet> {
+        self.inner.packages.as_ref()
+    }
+
     pub fn pool_status(&self) -> Option<PoolStatus> {
         self.inner.slots.as_ref().map(|(n, s)| PoolStatus {
             slots: *n,
@@ -776,7 +826,11 @@ async fn run(
         ),
         (Language::Python, None) => {
             let mut argv = vec!["python", "-I", "-B", "-S", "-X", "frozen_modules=on"];
-            if python_needs_bootstrap(policy.network().grants_anything(), &req.code) {
+            // The bootstrap puts the helper directory on sys.path; with packages (cycle 5) the
+            // mounted helpers carry them, so it is needed for those runs too.
+            if python_needs_bootstrap(policy.network().grants_anything(), &req.code)
+                || inner.uses_packages(lang, &policy)
+            {
                 argv.extend(["-c", PYTHON_LAUNCHER]);
             }
             argv.push("/code/main.py");
@@ -798,7 +852,7 @@ async fn run(
         audit.clone(),
     )
     .and_then(|f| f.with_code(file_name, req.code.as_bytes()))
-    .and_then(|f| f.with_helpers(&inner.helpers))
+    .and_then(|f| f.with_helpers(inner.helpers_for(lang, &policy)))
     {
         Ok(f) => f,
         Err(e) => {

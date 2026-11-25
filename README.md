@@ -52,7 +52,8 @@ curl -H "Authorization: Bearer $TOKEN" -d '{"language":"python","code":"print(6*
 - ✅ Logic, string processing, JSON/CSV, `statistics`, `decimal`, `datetime`, `re`: the Python stdlib. Also modern JavaScript.
 - ❌ NumPy/pandas and other native extensions. These return `UNSUPPORTED_NATIVE_EXTENSION`; a container/microVM fallback is a planned extension point.
 - ✅ Network access **when a policy grants it**: `urllib`, `http.client`, `socket.create_connection` and `fetch` work unchanged, through an allowlisting broker. See [docs/NETWORK.md](docs/NETWORK.md).
-- ❌ `pip install` and non-blocking/async sockets.
+- ✅ Pure-Python packages **the operator provides** (`[packages] dir` of `py3-none-any` wheels, optionally hash-locked), read-only and after the stdlib. See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md#8-python-packages-optional).
+- ❌ `pip install` by agents, and non-blocking/async sockets.
 
 ## Performance features (cycle 3)
 - **Snapshots** (`[runtime] snapshots = "auto"`): CPython and QuickJS are built from pinned sources in CI,

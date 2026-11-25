@@ -204,6 +204,34 @@ pub(crate) async fn ensure_helper_bytecode(
     Ok(true)
 }
 
+/// Compile the merged helpers + operator packages directory to `__pycache__` (cycle 5). Same
+/// rules as the helpers: the marker holds the interpreter hash, and failure is not fatal.
+pub(crate) async fn ensure_package_bytecode(
+    engine: &Engine,
+    module: &Module,
+    stdlib: &Path,
+    packages: &Path,
+) -> Result<bool, RuntimeError> {
+    let marker = packages.join(".pyc-complete");
+    let want = sandboxd_assets::PYTHON.sha256;
+    if std::fs::read_to_string(&marker).is_ok_and(|m| m == want) {
+        return Ok(false);
+    }
+    compileall(
+        engine,
+        module,
+        &[
+            (stdlib, sandboxd_policy::STDLIB_GUEST_PATH, false),
+            (packages, sandboxd_policy::HELPER_GUEST_PATH, true),
+        ],
+        sandboxd_policy::HELPER_GUEST_PATH,
+    )
+    .await?;
+    std::fs::write(&marker, want)
+        .map_err(|e| RuntimeError::Io(format!("write {}: {e}", marker.display())))?;
+    Ok(true)
+}
+
 /// Run `python -m compileall -f -q --invalidation-mode unchecked-hash <target>` in a sandbox with
 /// the given (host dir, guest path, writable) preopens.
 async fn compileall(

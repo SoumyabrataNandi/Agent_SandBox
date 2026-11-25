@@ -6,6 +6,25 @@ All notable changes to sandboxd are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-24
+
+### Added
+- **Operator Python packages:** `[packages] dir` points at a directory of pure-Python wheels
+  (`py3-none-any`), optionally pinned with `[packages] sha256`. They're validated at start-up (native
+  code, unsafe paths and oversized wheels are refused), extracted once, compiled inside the sandbox,
+  and importable read-only in every Python run (fresh, snapshot and session), after the stdlib.
+  Policies can opt out with `[python] packages = false`. `sandboxd packages list` validates the
+  directory and prints a lock; `list_policies` tells agents which packages exist.
+- **Container image** `ghcr.io/soumyabratanandi/sandboxd` (linux/amd64 + arm64): non-root,
+  `sandboxd serve` on 8080, tokens via `SANDBOXD_TOKENS`, cache volume. Built from the release
+  binaries and smoke-tested before it is pushed.
+
+### Changed
+- **`sandboxd mcp` connects immediately.** The handshake no longer waits for the cache build; tool
+  calls wait instead (with a progress message), and a failed start-up is reported to every call as
+  `STARTUP_FAILED`. MCP clients with short connect timeouts no longer give up on the first start.
+- The MCP pilot checks that `initialize` answers within 10 s on a cold cache.
+
 ## [0.1.0] - 2026-11-24
 
 The first release: everything from the original brief (phases 1–5).
@@ -42,5 +61,6 @@ The first release: everything from the original brief (phases 1–5).
 - Sessions live in memory: a restart ends them.
 - The first start builds the cache (run `sandboxd cache warm` once after installing).
 
-[Unreleased]: https://github.com/SoumyabrataNandi/Agent_SandBox/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/SoumyabrataNandi/Agent_SandBox/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/SoumyabrataNandi/Agent_SandBox/releases/tag/v0.2.0
 [0.1.0]: https://github.com/SoumyabrataNandi/Agent_SandBox/releases/tag/v0.1.0

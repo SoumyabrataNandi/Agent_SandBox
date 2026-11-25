@@ -173,6 +173,15 @@ impl RunService {
         self.inner.sandbox.pool_status()
     }
 
+    /// Operator Python packages (`name version`), empty without a wheelhouse (cycle 5).
+    pub fn packages(&self) -> Vec<String> {
+        self.inner
+            .sandbox
+            .packages()
+            .map(|p| p.names())
+            .unwrap_or_default()
+    }
+
     /// Metrics registry (for `/metrics`).
     pub fn metrics(&self) -> &Metrics {
         &self.inner.metrics

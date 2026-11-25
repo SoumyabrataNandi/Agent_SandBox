@@ -66,8 +66,17 @@ enum Cmd {
     /// Token tools.
     #[command(subcommand)]
     Token(TokenCmd),
+    /// Operator Python packages (`[packages]` in the config).
+    #[command(subcommand)]
+    Packages(PackagesCmd),
     /// Print version and pinned interpreter assets.
     Version,
+}
+
+#[derive(Subcommand, Debug)]
+enum PackagesCmd {
+    /// Validate the wheelhouse and list its wheels (name, version, SHA-256).
+    List,
 }
 
 #[derive(Args, Debug)]
@@ -170,6 +179,7 @@ fn main() -> ExitCode {
                 ExitCode::SUCCESS
             }
             Cmd::Cache(c) => cache(c, &cfg).await,
+            Cmd::Packages(PackagesCmd::List) => packages_list(&cfg),
             Cmd::Policy(p) => policy(p, &cfg),
             Cmd::Run(a) => run(a, &cfg).await,
             Cmd::Serve { listen } => serve(cfg, listen).await,
@@ -283,6 +293,7 @@ async fn build(
         broker: network_broker(&cfg.network)?,
         pooling: cfg.pooling,
         snapshots: cfg.snapshots,
+        packages: cfg.packages.clone(),
         // ADR-C3-3: one slot per concurrent run and per live session (C3-U4), plus start-up
         // tasks (bytecode, probes).
         pool_slots: u32::try_from(
@@ -305,6 +316,13 @@ async fn build(
             python_floor_mib = report.snapshot_floor_python >> 20,
             javascript_floor_mib = report.snapshot_floor_javascript >> 20,
             "interpreter snapshots ready; policies with a lower memory limit use the upstream interpreters"
+        );
+    }
+    if let Some((n, hash)) = &report.packages {
+        tracing::info!(
+            wheels = n,
+            set = %&hash[..12.min(hash.len())],
+            "operator Python packages ready"
         );
     }
     if let Some(why) = &report.pooling_fallback {
@@ -355,6 +373,35 @@ fn network_broker(
     Ok(Some(Arc::new(broker)))
 }
 
+/// `sandboxd packages list`: validates without extracting (FR-PK1.6).
+fn packages_list(cfg: &ServerConfig) -> ExitCode {
+    let Some(pc) = &cfg.packages else {
+        println!("no [packages] dir configured: Python runs get the standard library only");
+        return ExitCode::SUCCESS;
+    };
+    match sandboxd_runtime::scan_packages(pc) {
+        Ok(wheels) => {
+            println!("{} ({} wheels)", pc.dir.display(), wheels.len());
+            for (_, w) in &wheels {
+                println!(
+                    "  {:<28} {:<12} sha256:{}  {} files",
+                    w.name, w.version, w.sha256, w.files
+                );
+            }
+            if pc.sha256.is_empty() && !wheels.is_empty() {
+                println!(
+                    "\nno [packages] sha256 lock; to pin these wheels, add:\n  [packages.sha256]"
+                );
+                for (_, w) in &wheels {
+                    println!("  \"{}\" = \"{}\"", w.file, w.sha256);
+                }
+            }
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(e),
+    }
+}
+
 fn version() -> ExitCode {
     println!("sandboxd {}", env!("CARGO_PKG_VERSION"));
     for a in sandboxd_assets::ALL {
@@ -382,7 +429,7 @@ async fn cache(c: CacheCmd, cfg: &ServerConfig) -> ExitCode {
             ExitCode::SUCCESS
         }
         CacheCmd::Clear => {
-            for sub in ["modules", "stdlib", "helpers"] {
+            for sub in ["modules", "stdlib", "helpers", "packages"] {
                 let p = v.cache_dir.join(sub);
                 match std::fs::remove_dir_all(&p) {
                     Ok(()) => println!("removed {}", p.display()),
@@ -395,6 +442,7 @@ async fn cache(c: CacheCmd, cfg: &ServerConfig) -> ExitCode {
         CacheCmd::Warm => {
             let rc = RuntimeConfig {
                 vfs: v,
+                packages: cfg.packages.clone(),
                 ..RuntimeConfig::default()
             };
             match Sandbox::new(rc, Arc::new(NullSink)).await {
@@ -763,12 +811,33 @@ async fn serve(mut cfg: ServerConfig, listen: Option<String>) -> ExitCode {
 }
 
 async fn mcp(cfg: &ServerConfig) -> ExitCode {
-    let stack = match build(cfg, AuditDest::File(None), cfg.admission).await {
-        Ok(s) => s,
-        Err(e) => return fail(e),
-    };
-    stack.service.audit().emit(start_event(&stack.service));
-    let server = SandboxMcp::new(stack.service.clone(), "mcp-stdio");
+    // FR-ST1 (cycle 5): answer `initialize` and `tools/list` at once and build the sandbox in the
+    // background; tool calls wait for it. A cold cache takes tens of seconds to build, longer than
+    // some MCP clients wait for the handshake.
+    let (server, startup) = SandboxMcp::deferred("mcp-stdio");
+    let build_cfg = cfg.clone();
+    // The build compiles modules and extracts files synchronously inside its futures. Polled on a
+    // runtime worker, it starved the stdio task (a cold start answered `initialize` after ~22 s),
+    // so it runs on a blocking thread; tasks it spawns still land on the main runtime.
+    let handle = tokio::runtime::Handle::current();
+    let building = tokio::task::spawn_blocking(move || {
+        match handle.block_on(build(
+            &build_cfg,
+            AuditDest::File(None),
+            build_cfg.admission,
+        )) {
+            Ok(stack) => {
+                stack.service.audit().emit(start_event(&stack.service));
+                startup.ready(stack.service.clone());
+                Ok(stack)
+            }
+            Err(e) => {
+                eprintln!("sandboxd: start-up failed: {e}");
+                startup.failed(e.clone());
+                Err(e)
+            }
+        }
+    });
     let result = match server.serve(rmcp::transport::stdio()).await {
         Ok(running) => running
             .waiting()
@@ -776,6 +845,13 @@ async fn mcp(cfg: &ServerConfig) -> ExitCode {
             .map(|_| ())
             .map_err(|e| e.to_string()),
         Err(e) => Err(e.to_string()),
+    };
+    // The client is gone. Let a start-up still in progress finish (its cache writes are atomic,
+    // but an aborted build would just be redone), then shut down as before.
+    let stack = match building.await {
+        Ok(Ok(stack)) => stack,
+        Ok(Err(e)) => return fail(format!("start-up failed: {e}")),
+        Err(e) => return fail(format!("start-up task: {e}")),
     };
     stack.service.close_all_sessions().await;
     stack

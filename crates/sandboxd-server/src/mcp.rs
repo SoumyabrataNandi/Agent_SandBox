@@ -8,8 +8,8 @@ use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::{
         CallToolResult, ContentBlock, EmbeddedResource, Extensions, Implementation,
-        ProgressNotificationParam, RequestMetaObject, ResourceContents, ServerCapabilities,
-        ServerConfig,
+        ProgressNotificationParam, ProgressToken, RequestMetaObject, ResourceContents,
+        ServerCapabilities, ServerConfig,
     },
     tool, tool_handler, tool_router,
 };
@@ -29,7 +29,8 @@ pub const INSTRUCTIONS: &str = "sandboxd runs untrusted Python or JavaScript in 
 Use `run_code` for calculations, data processing, parsing and transforming text/JSON/CSV, and checking logic. \
 The sandbox has NO network access, NO package installation (pip/npm), and NO native extensions: \
 numpy, pandas, scipy and similar are unavailable, so use the Python standard library (csv, json, statistics, \
-decimal, datetime, re, itertools, collections) or plain JavaScript. Pass data as `files` (readable under /in); \
+decimal, datetime, re, itertools, collections) or plain JavaScript. The operator may also provide some pure-Python \
+packages; `list_policies` lists them. Pass data as `files` (readable under /in); \
 write result files to /out (they are returned as artifacts). Each run is fresh: nothing persists between calls, \
 unless you create a session with `session_create` (if the policy allows it) and pass its `session_id` to `run_code`: \
 then variables, imports and files under /work carry over, like notebook cells. Close it with `session_close` when done. \
@@ -38,11 +39,42 @@ Limits (time, memory, output) come from the selected policy; see `list_policies`
 /// The MCP service. One instance per session; all share the [`RunService`].
 #[derive(Clone)]
 pub struct SandboxMcp {
-    service: RunService,
+    service: ServiceSlot,
     transport: &'static str,
     #[allow(dead_code, reason = "read by the #[tool_handler] macro expansion")]
     tool_router: ToolRouter<Self>,
 }
+
+/// Start-up state shared with a deferred server: `None` while the sandbox is being built.
+type StartupState = Option<Result<RunService, String>>;
+
+/// The run service, or a handle that resolves when a deferred start-up finishes (C5-U1).
+#[derive(Clone)]
+enum ServiceSlot {
+    Ready(RunService),
+    Starting(tokio::sync::watch::Receiver<StartupState>),
+}
+
+/// Completes a deferred start-up created with [`SandboxMcp::deferred`]. Dropping it without
+/// calling [`ready`](Self::ready) fails every waiting and future tool call.
+#[derive(Debug)]
+pub struct StartupHandle(tokio::sync::watch::Sender<StartupState>);
+
+impl StartupHandle {
+    /// The sandbox is built: waiting tool calls proceed.
+    pub fn ready(self, service: RunService) {
+        self.0.send_replace(Some(Ok(service)));
+    }
+
+    /// Start-up failed: tool calls return `STARTUP_FAILED` with this reason.
+    pub fn failed(self, reason: impl Into<String>) {
+        self.0.send_replace(Some(Err(reason.into())));
+    }
+}
+
+/// Shown (as progress) to a client whose tool call waits for a deferred start-up.
+const STARTING_MESSAGE: &str =
+    "sandboxd is starting (building the interpreter cache); the call runs when it is ready";
 
 impl std::fmt::Debug for SandboxMcp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -57,9 +89,49 @@ impl SandboxMcp {
     /// `transport` labels the principal for unauthenticated local use (e.g. `mcp-stdio`).
     pub fn new(service: RunService, transport: &'static str) -> Self {
         Self {
-            service,
+            service: ServiceSlot::Ready(service),
             transport,
             tool_router: Self::tool_router(),
+        }
+    }
+
+    /// A server that answers the protocol (`initialize`, `tools/list`) at once while the sandbox
+    /// is still being built; tool calls wait for the [`StartupHandle`] (C5-U1, FR-ST1).
+    pub fn deferred(transport: &'static str) -> (Self, StartupHandle) {
+        let (tx, rx) = tokio::sync::watch::channel(None);
+        let server = Self {
+            service: ServiceSlot::Starting(rx),
+            transport,
+            tool_router: Self::tool_router(),
+        };
+        (server, StartupHandle(tx))
+    }
+
+    /// The run service, waiting for a deferred start-up. With a progress token, a call that has
+    /// to wait first tells the client why.
+    async fn ready(
+        &self,
+        progress: Option<(&Peer<RoleServer>, &ProgressToken)>,
+    ) -> Result<RunService, CallToolResult> {
+        let rx = match &self.service {
+            ServiceSlot::Ready(s) => return Ok(s.clone()),
+            ServiceSlot::Starting(rx) => rx,
+        };
+        let starting = rx.borrow().is_none();
+        if starting && let Some((peer, token)) = progress {
+            let _ = peer
+                .notify_progress(
+                    ProgressNotificationParam::new(token.clone(), 0.0)
+                        .with_message(STARTING_MESSAGE),
+                )
+                .await;
+        }
+        let mut rx = rx.clone();
+        let state = rx.wait_for(Option::is_some).await.map(|s| s.clone());
+        match state {
+            Ok(Some(Ok(service))) => Ok(service),
+            Ok(Some(Err(reason))) => Err(startup_failed(&reason)),
+            Ok(None) | Err(_) => Err(startup_failed("sandboxd stopped during start-up")),
         }
     }
 
@@ -75,9 +147,14 @@ impl SandboxMcp {
         extensions: Extensions,
     ) -> Result<CallToolResult, ErrorData> {
         let principal = self.principal(&extensions);
+        let token = meta.get_progress_token();
+        let service = match self.ready(token.as_ref().map(|t| (&peer, t))).await {
+            Ok(s) => s,
+            Err(failed) => return Ok(failed),
+        };
 
         // Stream output as progress notifications when the client asked for progress.
-        let (events, forward) = match meta.get_progress_token() {
+        let (events, forward) = match token {
             Some(token) => {
                 let (tx, mut rx) = mpsc::channel::<RunEvent>(64);
                 let t0 = Instant::now();
@@ -107,15 +184,15 @@ impl SandboxMcp {
         };
 
         let outcome = match req.into_session_call_or_run() {
-            Ok(req) => self
-                .service
+            Ok(req) => service
                 .submit(&principal, req, events)
                 .await
                 .map(|r| (r, None)),
-            Err((id, language, policy, call)) => self
-                .session_call(&principal, &id, language, policy, call, events)
-                .await
-                .map(|(r, ended)| (r, Some((id, ended)))),
+            Err((id, language, policy, call)) => {
+                Self::session_call(&service, &principal, &id, language, policy, call, events)
+                    .await
+                    .map(|(r, ended)| (r, Some((id, ended))))
+            }
         };
         if let Some(t) = forward {
             let _ = t.await;
@@ -127,7 +204,7 @@ impl SandboxMcp {
     }
 
     async fn session_call(
-        &self,
+        service: &RunService,
         principal: &Principal,
         id: &str,
         language: ApiLanguage,
@@ -135,7 +212,7 @@ impl SandboxMcp {
         call: ApiSessionRun,
         events: Option<mpsc::Sender<RunEvent>>,
     ) -> Result<(RunResult, Option<SessionEnd>), ServiceError> {
-        let info = self.service.session_info(principal, id)?;
+        let info = service.session_info(principal, id)?;
         if Language::from(language).as_str() != info.language {
             return Err(ServiceError::InvalidRequest(format!(
                 "session {id} runs {}, not {}",
@@ -149,7 +226,7 @@ impl SandboxMcp {
                 info.policy
             )));
         }
-        self.service.session_run(principal, id, call, events).await
+        service.session_run(principal, id, call, events).await
     }
 
     #[tool(
@@ -162,7 +239,11 @@ impl SandboxMcp {
         extensions: Extensions,
     ) -> Result<CallToolResult, ErrorData> {
         let principal = self.principal(&extensions);
-        Ok(match self.service.create_session(&principal, req).await {
+        let service = match self.ready(None).await {
+            Ok(s) => s,
+            Err(failed) => return Ok(failed),
+        };
+        Ok(match service.create_session(&principal, req).await {
             Ok(s) => {
                 let text = format!(
                     "session {} created ({}, policy {}). Pass session_id to run_code. Ends after {} s idle, at {} at the latest, or after {} calls.",
@@ -186,12 +267,12 @@ impl SandboxMcp {
         extensions: Extensions,
     ) -> Result<CallToolResult, ErrorData> {
         let principal = self.principal(&extensions);
+        let service = match self.ready(None).await {
+            Ok(s) => s,
+            Err(failed) => return Ok(failed),
+        };
         Ok(
-            match self
-                .service
-                .close_session(&principal, &req.session_id)
-                .await
-            {
+            match service.close_session(&principal, &req.session_id).await {
                 Ok(s) => {
                     let mut r = CallToolResult::success(vec![ContentBlock::text(format!(
                         "session {} closed after {} calls",
@@ -219,7 +300,10 @@ impl SandboxMcp {
         description = "List the sandbox policies you can pass as `policy` to run_code, with their time and memory limits and any read-only data mounts."
     )]
     async fn list_policies(&self) -> Result<CallToolResult, ErrorData> {
-        let ps = self.service.policies();
+        let (ps, packages) = match self.ready(None).await {
+            Ok(s) => (s.policies(), s.packages()),
+            Err(failed) => return Ok(failed),
+        };
         let text = ps
             .iter()
             .map(|p| {
@@ -235,10 +319,26 @@ impl SandboxMcp {
             })
             .collect::<Vec<_>>()
             .join("\n");
+        let text = if packages.is_empty() {
+            text
+        } else {
+            format!(
+                "{text}\n\nPython packages available (pure Python, import them directly; policies may opt out): {}",
+                packages.join(", ")
+            )
+        };
         let mut r = CallToolResult::success(vec![ContentBlock::text(text)]);
-        r.structured_content = serde_json::to_value(serde_json::json!({ "policies": ps })).ok();
+        r.structured_content =
+            serde_json::to_value(serde_json::json!({ "policies": ps, "packages": packages })).ok();
         Ok(r)
     }
+}
+
+/// The tool result for calls made after a failed deferred start-up (FR-ST1.3).
+fn startup_failed(reason: &str) -> CallToolResult {
+    CallToolResult::error(vec![ContentBlock::text(format!(
+        "STARTUP_FAILED: sandboxd could not start: {reason}"
+    ))])
 }
 
 /// `session_close` parameters.
