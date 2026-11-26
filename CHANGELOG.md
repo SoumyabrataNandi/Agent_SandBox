@@ -17,6 +17,9 @@ All notable changes to sandboxd are listed here. The format follows
 ### Fixed
 - Benchmarks: gVisor installs again (it now ships as a tarball), and the bench summary says
   whether gVisor was installed.
+- docs/BENCHMARKS.md is regenerated from bench run 45853737600 and now includes gVisor: Python
+  `print(1)` 2.22 ms p50 through the server (gVisor `docker exec` 34.5 ms, `docker run` 133.6 ms),
+  1,302 runs/s.
 
 ### Changed
 - Release workflow: the Docker actions moved to their Node 24 versions (setup-qemu and setup-buildx v4,
