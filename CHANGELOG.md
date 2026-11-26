@@ -6,6 +6,11 @@ All notable changes to sandboxd are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Release workflow: the Docker actions moved to their Node 24 versions (setup-qemu and setup-buildx v4,
+  login v4, build-push v7), which removes the Node 20 deprecation warning.
+- The container base image is pinned by digest, and Dependabot now proposes updates to it weekly.
+
 ## [0.2.1] - 2026-11-26
 
 ### Fixed

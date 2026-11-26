@@ -25,3 +25,9 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  # The container base image (debian:trixie-slim, pinned by digest): a PR when the digest moves on.
+  - package-ecosystem: docker
+    directory: /packaging/container
+    schedule:
+      interval: weekly
+      day: monday

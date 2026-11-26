@@ -10,7 +10,7 @@
 #   docker run -p 8080:8080 -v sandboxd-cache:/var/cache/sandboxd \
 #     -e SANDBOXD_TOKEN_SHA256=<from `sandboxd token new`> ghcr.io/<owner>/sandboxd
 # or mount your own config at /etc/sandboxd/sandboxd.toml (and policies at /etc/sandboxd/policies).
-FROM debian:trixie-slim
+FROM debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0
 
 ARG TARGETARCH
 LABEL org.opencontainers.image.title="sandboxd" \
