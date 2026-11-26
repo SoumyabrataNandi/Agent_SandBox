@@ -570,3 +570,20 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 **Timestamp**: 2026-11-25 to 2026-11-26
 **User Input**: "continue" (standing approval for all cycle 5 steps)
 **AI Response**: Pushed 19a7130 (user completed the GitHub sign-in); CI green; tagged v0.2.0. The release run built every binary and the draft release, but the container smoke test failed: `curl -d` sent a form content type and /v1/runs answered 415 (also wrong in the README and GETTING_STARTED examples). Fixed in 8b861fd and released as v0.2.1 instead of moving the public v0.2.0 tag. v0.2.1: CI green, release run 45773070665 all green, ghcr.io/soumyabratanandi/sandboxd:0.2.1 pullable anonymously. Cycle 5 complete.
+
+---
+
+## Owner actions after cycle 5
+**Timestamp**: 2026-11-26
+**User Input**: "fix and do what else want to do" (screenshot: Node 20 deprecation warning in the v0.2.1 container job); then "done"; "done enable"
+**AI Response**: Docker actions moved to Node 24 versions (setup-qemu/buildx v4, login v4, build-push v7); base image pinned by digest; Dependabot watches packaging/container (31ccdfd, CI green). Verified v0.2.1 is published as latest (Windows archive downloaded, checksum OK, runs) and private vulnerability reporting is enabled.
+
+---
+
+## Cycle 6 inception and C6-U1..U4
+**Timestamp**: 2026-11-26
+**User Input**: "start cycle 6 with all defaults"
+**AI Response**: Scope Q1–Q7 all recommended: Python + JS clients (no dependencies), release assets, a container check workflow, the gVisor bench fix, v0.3.0.
+- C6-U1: packaging/container/smoke.sh shared by release.yml and the new container.yml (path-filtered, read-only).
+- C6-U2: the bench gVisor install failed with wget exit 8 (bare runsc no longer published; continue-on-error hid it). It now installs from gvisor.tar.bz2 (SHA-512 verified) and reports the outcome in the job summary.
+- C6-U3/U4: clients/python (stdlib, >=3.10) and clients/js (fetch, >=Node 18, .d.ts); shared clients/testserver.py; 14/14 tests each against a real server locally; tsc strict OK; wheel and npm pack verified; README examples run. CI job `clients` (Python 3.10, Node 18); release job `clients` attaches the packages; scripts/client_versions.py keeps versions in step.

@@ -4,8 +4,8 @@
 - **Project**: sandboxd — WebAssembly sandbox for agent-generated code
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
-- **Current Phase**: Cycle 5 — CONSTRUCTION
-- **Current Stage**: Cycle 5 complete: v0.2.1 released as draft with the container image (run 45773070665); owner publishes the draft
+- **Current Phase**: Cycle 6 — CONSTRUCTION
+- **Current Stage**: Cycle 6: C6-U1–U4 done (container check, gVisor, Python + JS clients); next C6-U5 release v0.3.0
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -157,3 +157,28 @@
 | C5-U2 Operator wheelhouse | Done (snapshot/upstream/session imports; 7 unit + 4 integration tests) |
 | C5-U3 Container image | Done (Dockerfile, entrypoint, release job; verified by the release run) |
 | C5-U4 Release v0.2.1 | Done (binaries, draft release, ghcr.io image; v0.2.0 superseded) |
+
+---
+
+# Cycle 6 (client libraries, container check, gVisor)
+
+## Workspace State (2026-11-26)
+- **Project Type**: Brownfield (v0.2.1 published; CI green at 31ccdfd)
+- **Artifacts root**: `aidlc-docs/cycle-6/`
+- **Approval**: user "start cycle 6 with all defaults" (all recommended options)
+
+## Stage Progress
+- [x] Requirements Analysis — Q1–Q7 all A (2026-11-26)
+- [x] Workflow Planning — 5 units
+- [ ] Application Design — SKIP (light; clients mirror the HTTP API)
+- [x] Construction C6-U1..U4 — done 2026-11-26
+- [ ] C6-U5 Release v0.3.0
+
+## Cycle 6 Construction Progress
+| Unit | Status |
+|---|---|
+| C6-U1 Container check | Done (verified by the first `container` run) |
+| C6-U2 gVisor comparator | Done (owner runs the bench workflow) |
+| C6-U3 Python client | Done (14/14 against a real server) |
+| C6-U4 JavaScript client | Done (14/14 against a real server; tsc strict) |
+| C6-U5 Release v0.3.0 | Pending |

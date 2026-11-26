@@ -77,8 +77,42 @@ jobs:
           name: ${{ matrix.target }}
           path: dist/sandboxd-*.${{ matrix.archive }}
 
+  # FR-CL2 (cycle 6): the Python wheel and the npm package, attached to the release.
+  clients:
+    name: client packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write       # build-provenance attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Versions match the tag
+        shell: bash
+        run: |
+          python scripts/client_versions.py
+          grep -q "^version = \"${GITHUB_REF_NAME#v}\"" clients/python/pyproject.toml             || { echo "client version is not ${GITHUB_REF_NAME#v}" >&2; exit 1; }
+      - name: Build
+        run: |
+          python -m pip wheel --no-deps -w dist clients/python
+          (cd clients/js && npm pack --pack-destination ../../dist)
+          ls -l dist
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: clients
+          path: dist/*
+
   draft-release:
-    needs: build
+    needs: [build, clients]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -92,7 +126,7 @@ jobs:
           path: dist
           merge-multiple: true
       - name: Checksums
-        run: cd dist && sha256sum sandboxd-* > SHA256SUMS && cat SHA256SUMS
+        run: cd dist && sha256sum sandboxd-* sandboxd_client-* > SHA256SUMS && cat SHA256SUMS
       - name: Release notes from CHANGELOG.md
         shell: bash
         run: |
@@ -110,6 +144,8 @@ jobs:
             echo "Every archive passed the escape suite on its own target before it was packaged."
             echo "Verify: \`sha256sum --ignore-missing -c SHA256SUMS\` and \`gh attestation verify <archive> --repo ${GITHUB_REPOSITORY}\`."
             echo "Install: [GETTING_STARTED.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/GETTING_STARTED.md)."
+            dl="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+            echo "Clients: \`pip install ${dl}/sandboxd_client-${ver}-py3-none-any.whl\` · \`npm install ${dl}/sandboxd-client-${ver}.tgz\`."
           } >> notes.md
           cat notes.md
       - name: Draft GitHub Release
@@ -157,30 +193,7 @@ jobs:
         run: |
           docker buildx build --platform linux/amd64 --load -t sandboxd-smoke -f packaging/container/Dockerfile .
       - name: Smoke test (version, /healthz, one authenticated run)
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker run --rm sandboxd-smoke version
-          out="$(bin/amd64/sandboxd token new --name smoke)"
-          token="$(printf '%s\n' "$out" | sed -n '2p' | tr -d ' ')"
-          hash="$(printf '%s\n' "$out" | grep -o 'sha256 = "[0-9a-f]*"' | cut -d'"' -f2)"
-          docker run -d --name smoke -p 8080:8080 -e SANDBOXD_TOKENS="smoke=${hash}" sandboxd-smoke
-          ready=
-          for i in $(seq 1 300); do
-            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then echo "ready after ${i}s"; ready=1; break; fi
-            if [ "$(docker inspect -f '{{.State.Running}}' smoke)" != true ]; then docker logs smoke; exit 1; fi
-            sleep 1
-          done
-          [ -n "$ready" ] || { echo "not ready after 300 s"; docker logs smoke; exit 1; }
-          r="$(curl -fsS -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json'             -d '{"language":"python","code":"print(6*7)"}' http://127.0.0.1:8080/v1/runs)" || { docker logs smoke; exit 1; }
-          echo "$r"
-          printf '%s' "$r" | python3 -c 'import json,sys; r=json.load(sys.stdin); assert r["stdout"]=="42\n", r'
-          # Unauthenticated requests are refused.
-          code="$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"language":"python","code":"1"}' http://127.0.0.1:8080/v1/runs)"
-          [ "$code" = 401 ] || { echo "expected 401, got $code"; exit 1; }
-          # Not root inside the container.
-          [ "$(docker exec smoke id -u)" = 10001 ]
-          docker rm -f smoke
+        run: bash packaging/container/smoke.sh sandboxd-smoke bin/amd64/sandboxd
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io

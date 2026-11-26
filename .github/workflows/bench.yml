@@ -56,21 +56,36 @@ jobs:
           docker pull python:3.15-slim
           docker pull node:22-slim
 
-      # Optional comparator (B1.2: "if installable on the runner"). The binary is checked against the
-      # SHA-512 published next to it. The harness records the version and skips gVisor if this fails.
+      # Optional comparator (B1.2: "if installable on the runner"). gVisor publishes a tarball
+      # (runsc + shim) checked against the SHA-512 next to it (FR-GV1, cycle 6: the bare `runsc`
+      # download used before no longer exists). The harness records the version and skips gVisor
+      # if this fails; the outcome is written to the job summary either way.
       - name: Install gVisor
+        id: gvisor
         if: ${{ inputs.gvisor }}
         continue-on-error: true
         run: |
           set -euo pipefail
           url="https://storage.googleapis.com/gvisor/releases/release/latest/$(uname -m)"
-          cd "$RUNNER_TEMP"
-          wget -q "$url/runsc" "$url/runsc.sha512"
-          sha512sum -c runsc.sha512
-          sudo install -m 0755 runsc /usr/local/bin/runsc
+          mkdir -p "$RUNNER_TEMP/gvisor"
+          cd "$RUNNER_TEMP/gvisor"
+          wget -q "$url/gvisor.tar.bz2" "$url/gvisor.tar.bz2.sha512"
+          sha512sum -c gvisor.tar.bz2.sha512
+          tar xjf gvisor.tar.bz2 runsc containerd-shim-runsc-v1
+          sudo install -m 0755 runsc containerd-shim-runsc-v1 /usr/local/bin/
           sudo /usr/local/bin/runsc install
           sudo systemctl restart docker
           docker run --rm --runtime runsc python:3.15-slim python -c "print('gVisor ok')"
+          runsc --version | head -1
+      - name: gVisor outcome
+        if: ${{ always() }}
+        run: |
+          if [ "${{ inputs.gvisor }}" != true ]; then msg="not requested"
+          elif [ "${{ steps.gvisor.outcome }}" = success ]; then msg="installed: $(runsc --version | head -1)"
+          else msg="install failed (${{ steps.gvisor.outcome }}); gVisor rows will be skipped, see the Install gVisor step"
+          fi
+          echo "gVisor: $msg"
+          echo "**gVisor:** $msg" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Host
         run: |

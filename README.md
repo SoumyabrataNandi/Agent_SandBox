@@ -48,6 +48,14 @@ curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{
 ```
 `POST /v1/runs?stream=true` streams stdout/stderr as server-sent events. `/metrics` is Prometheus.
 
+### From Python or JavaScript
+Dependency-free clients ship with each release: [clients/python](clients/python/README.md) and
+[clients/js](clients/js/README.md) (TypeScript types included).
+```python
+from sandboxd_client import Sandboxd
+print(Sandboxd("http://127.0.0.1:8080", token=TOKEN).run("print(6*7)").stdout)   # 42
+```
+
 ## What runs, and what doesn't
 - ✅ Logic, string processing, JSON/CSV, `statistics`, `decimal`, `datetime`, `re`: the Python stdlib. Also modern JavaScript.
 - ❌ NumPy/pandas and other native extensions. These return `UNSUPPORTED_NATIVE_EXTENSION`; a container/microVM fallback is a planned extension point.

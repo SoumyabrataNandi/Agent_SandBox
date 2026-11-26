@@ -6,6 +6,18 @@ All notable changes to sandboxd are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Client libraries:** `sandboxd-client` for Python (≥ 3.10, standard library only) and for
+  JavaScript/TypeScript (one ES module on `fetch`, with type declarations). Both cover runs, files
+  and artifacts, streaming, sessions, policies and health. They raise one error type with the
+  server's code and retry `429` answers. The wheel and the npm package are attached to each release.
+- **Container check:** the `container` workflow builds and smoke-tests the image whenever the
+  container files change. The smoke test is shared with the release (`packaging/container/smoke.sh`).
+
+### Fixed
+- Benchmarks: gVisor installs again (it now ships as a tarball), and the bench summary says
+  whether gVisor was installed.
+
 ### Changed
 - Release workflow: the Docker actions moved to their Node 24 versions (setup-qemu and setup-buildx v4,
   login v4, build-push v7), which removes the Node 20 deprecation warning.

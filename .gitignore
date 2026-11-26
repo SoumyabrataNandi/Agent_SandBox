@@ -4,3 +4,10 @@
 .sandboxd-cache/
 *.swp
 .DS_Store
+# client libraries (cycle 6)
+__pycache__/
+/clients/python/build/
+/clients/python/dist/
+*.egg-info/
+/clients/js/node_modules/
+/clients/js/*.tgz

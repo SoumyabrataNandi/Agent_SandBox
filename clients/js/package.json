@@ -1,0 +1,26 @@
+{
+  "name": "sandboxd-client",
+  "version": "0.2.1",
+  "description": "JavaScript/TypeScript client for sandboxd, the WebAssembly sandbox for AI-agent code",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": ["index.js", "index.d.ts", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test/client.test.js"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SoumyabrataNandi/Agent_SandBox.git",
+    "directory": "clients/js"
+  },
+  "keywords": ["sandbox", "webassembly", "ai-agents", "code-execution"]
+}

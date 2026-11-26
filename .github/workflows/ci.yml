@@ -173,6 +173,52 @@ jobs:
       - name: OTLP export tests
         run: cargo test --locked -p sandboxd-server --features otel -- --test-threads=4
 
+  # FR-CL1 (cycle 6): the Python and JavaScript clients against a real `sandboxd serve`, on the
+  # oldest runtimes they support (Python 3.10, Node 18), plus a type check of the TypeScript
+  # declarations and the client/workspace version check.
+  clients:
+    name: client libraries
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: |
+            3.10
+            3.13
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "18"
+      - name: client versions match the workspace
+        run: python scripts/client_versions.py
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/cache@v6
+        with:
+          path: assets/vendor
+          key: assets-${{ hashFiles('assets/manifest.toml') }}
+      - run: python scripts/fetch-assets.py
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked -p sandboxd
+      - name: Python client (3.10) against sandboxd
+        env:
+          SANDBOXD_REQUIRE_SERVER: "1"
+        run: |
+          python clients/testserver.py --sandboxd target/debug/sandboxd --cache-dir "$RUNNER_TEMP/sbx-cache" --             python3.10 -I -m unittest discover -s clients/python/tests -v
+      - name: JavaScript client (Node 18) against sandboxd
+        env:
+          SANDBOXD_REQUIRE_SERVER: "1"
+        run: |
+          node --version
+          python clients/testserver.py --sandboxd target/debug/sandboxd --cache-dir "$RUNNER_TEMP/sbx-cache" --             node --test clients/js/test/client.test.js
+      - name: TypeScript declarations
+        run: npx -y -p typescript@5.9.3 tsc -p clients/js/test/tsconfig.json
+      - name: Packages build
+        run: |
+          python -m pip wheel --no-deps -w dist clients/python
+          (cd clients/js && npm pack --pack-destination ../../dist)
+          ls -l dist
+
   perf-smoke:
     name: performance smoke (2x NFR-3)
     needs: test

@@ -150,6 +150,25 @@ curl http://127.0.0.1:8080/healthz          # ready once the cache is built (fir
 - `--read-only` works with `--tmpfs /tmp --tmpfs /var/lib/sandboxd/work` and the cache volume.
 - Put TLS in front of it (ingress or reverse proxy) before exposing it beyond the host.
 
+## 10. Client libraries
+Python and JavaScript/TypeScript clients come with each release (no dependencies). They send the
+right headers, decode artifacts, stream output, manage sessions and retry `429` answers.
+```bash
+pip install https://github.com/SoumyabrataNandi/Agent_SandBox/releases/download/v<version>/sandboxd_client-<version>-py3-none-any.whl
+npm install https://github.com/SoumyabrataNandi/Agent_SandBox/releases/download/v<version>/sandboxd-client-<version>.tgz
+```
+```python
+from sandboxd_client import Sandboxd
+sbx = Sandboxd("http://127.0.0.1:8080", token="sbx_...")   # or SANDBOXD_URL / SANDBOXD_TOKEN
+print(sbx.run("print(6*7)").stdout)                          # 42
+```
+```js
+import { Sandboxd } from "sandboxd-client";
+const sbx = new Sandboxd({ url: "http://127.0.0.1:8080", token: "sbx_..." });
+console.log((await sbx.run("print(6*7)")).stdout);           // 42
+```
+More: [clients/python](../clients/python/README.md), [clients/js](../clients/js/README.md).
+
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
