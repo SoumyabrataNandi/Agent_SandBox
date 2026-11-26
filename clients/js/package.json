@@ -1,6 +1,6 @@
 {
   "name": "sandboxd-client",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "JavaScript/TypeScript client for sandboxd, the WebAssembly sandbox for AI-agent code",
   "type": "module",
   "main": "./index.js",

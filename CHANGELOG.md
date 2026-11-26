@@ -6,6 +6,8 @@ All notable changes to sandboxd are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-26
+
 ### Added
 - **Client libraries:** `sandboxd-client` for Python (≥ 3.10, standard library only) and for
   JavaScript/TypeScript (one ES module on `fetch`, with type declarations). Both cover runs, files
@@ -89,7 +91,8 @@ The first release: everything from the original brief (phases 1–5).
 - Sessions live in memory: a restart ends them.
 - The first start builds the cache (run `sandboxd cache warm` once after installing).
 
-[Unreleased]: https://github.com/SoumyabrataNandi/Agent_SandBox/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/SoumyabrataNandi/Agent_SandBox/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/SoumyabrataNandi/Agent_SandBox/releases/tag/v0.3.0
 [0.2.1]: https://github.com/SoumyabrataNandi/Agent_SandBox/releases/tag/v0.2.1
 [0.2.0]: https://github.com/SoumyabrataNandi/Agent_SandBox/releases/tag/v0.2.0
 [0.1.0]: https://github.com/SoumyabrataNandi/Agent_SandBox/releases/tag/v0.1.0

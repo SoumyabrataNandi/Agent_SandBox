@@ -12,7 +12,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Iterator, Mapping, Optional, Sequence, Union
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 DEFAULT_URL = "http://127.0.0.1:8080"
 MAX_RETRY_WAIT_S = 10.0

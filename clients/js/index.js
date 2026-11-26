@@ -9,7 +9,7 @@
 // A guest failure (an exception, a non-zero exit, a limit) is a normal result (`r.ok` is false);
 // `SandboxdError` is thrown only when the server refuses a request.
 
-export const VERSION = "0.2.1";
+export const VERSION = "0.3.0";
 const DEFAULT_URL = "http://127.0.0.1:8080";
 const MAX_RETRY_WAIT_MS = 10_000;
 
