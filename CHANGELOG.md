@@ -6,6 +6,14 @@ All notable changes to sandboxd are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-26
+
+### Fixed
+- The container image is now published: the v0.2.0 release smoke test sent its request
+  without `Content-Type: application/json`, the server answered 415, and the image was never pushed.
+- The `curl` examples in the README and the getting-started guide now send
+  `Content-Type: application/json` (without it the server answers 415).
+
 ## [0.2.0] - 2026-11-24
 
 ### Added
@@ -61,6 +69,7 @@ The first release: everything from the original brief (phases 1–5).
 - Sessions live in memory: a restart ends them.
 - The first start builds the cache (run `sandboxd cache warm` once after installing).
 
-[Unreleased]: https://github.com/SoumyabrataNandi/Agent_SandBox/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/SoumyabrataNandi/Agent_SandBox/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/SoumyabrataNandi/Agent_SandBox/releases/tag/v0.2.1
 [0.2.0]: https://github.com/SoumyabrataNandi/Agent_SandBox/releases/tag/v0.2.0
 [0.1.0]: https://github.com/SoumyabrataNandi/Agent_SandBox/releases/tag/v0.1.0

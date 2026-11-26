@@ -43,7 +43,7 @@ See [docs/MCP.md](docs/MCP.md) for Claude Desktop, HTTP transport, tokens and po
 ```bash
 sandboxd token new --name ci              # add the printed hash to sandboxd.toml
 sandboxd serve --config sandboxd.toml
-curl -H "Authorization: Bearer $TOKEN" -d '{"language":"python","code":"print(6*7)"}' \
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"language":"python","code":"print(6*7)"}' \
      http://127.0.0.1:8080/v1/runs
 ```
 `POST /v1/runs?stream=true` streams stdout/stderr as server-sent events. `/metrics` is Prometheus.

@@ -85,7 +85,7 @@ path = "audit.jsonl"
 ```
 ```bash
 ./sandboxd serve --config sandboxd.toml
-curl -H "Authorization: Bearer <token>" -d '{"language":"python","code":"print(6*7)"}' \
+curl -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"language":"python","code":"print(6*7)"}' \
      http://127.0.0.1:8080/v1/runs
 ```
 The same server speaks MCP at `/mcp` for remote agents. Put TLS (a reverse proxy) in front of it
