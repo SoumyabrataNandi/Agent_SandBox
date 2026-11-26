@@ -563,3 +563,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 - C5-U3: packaging/container (Dockerfile on debian:trixie-slim, uid 10001, entrypoint with SANDBOXD_TOKENS), .dockerignore, and a release.yml image job (smoke test, then multi-arch push to ghcr.io with provenance).
 - Version 0.2.0; CHANGELOG, GETTING_STARTED §8–9, README, MCP.md, THREAT_MODEL.
 - Local: clippy clean; full workspace suite passes, including the escape suite (6+17+11); MCP pilot 11/11 on a cold cache. One unexplained first-run failure of cli ac7_mcp_stdio_child_process did not reproduce in 4 reruns.
+
+---
+
+## C5-U4 Release
+**Timestamp**: 2026-11-25 to 2026-11-26
+**User Input**: "continue" (standing approval for all cycle 5 steps)
+**AI Response**: Pushed 19a7130 (user completed the GitHub sign-in); CI green; tagged v0.2.0. The release run built every binary and the draft release, but the container smoke test failed: `curl -d` sent a form content type and /v1/runs answered 415 (also wrong in the README and GETTING_STARTED examples). Fixed in 8b861fd and released as v0.2.1 instead of moving the public v0.2.0 tag. v0.2.1: CI green, release run 45773070665 all green, ghcr.io/soumyabratanandi/sandboxd:0.2.1 pullable anonymously. Cycle 5 complete.

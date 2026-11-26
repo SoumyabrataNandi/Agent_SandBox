@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: Cycle 5 — CONSTRUCTION
-- **Current Stage**: Cycle 4 (ship and pilot): Cycle 4 complete: v0.1.0 tagged, draft release created (run 45398159049); owner publishes the draft
+- **Current Stage**: Cycle 5 complete: v0.2.1 released as draft with the container image (run 45773070665); owner publishes the draft
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -148,7 +148,7 @@
 - [x] Workflow Planning — 4 units
 - [ ] Application Design — SKIP (light; decisions in answers and unit summaries)
 - [x] Construction C5-U1..U3 — done 2026-11-25
-- [ ] C5-U4 Release v0.2.0
+- [x] C5-U4 Release v0.2.1 — done 2026-11-26 (v0.2.0 image job failed; fixed in 0.2.1)
 
 ## Cycle 5 Construction Progress
 | Unit | Status |
@@ -156,4 +156,4 @@
 | C5-U1 Non-blocking MCP start-up | Done (initialize 0.06 s on a cold cache, was 22–68 s) |
 | C5-U2 Operator wheelhouse | Done (snapshot/upstream/session imports; 7 unit + 4 integration tests) |
 | C5-U3 Container image | Done (Dockerfile, entrypoint, release job; verified by the release run) |
-| C5-U4 Release v0.2.0 | Pending |
+| C5-U4 Release v0.2.1 | Done (binaries, draft release, ghcr.io image; v0.2.0 superseded) |
