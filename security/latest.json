@@ -1,9 +1,9 @@
 {
-  "sha": "31ccdfd8bf7c1c0750a412eed72feb0ffaeb9571",
-  "date": "2026-11-26T15:23:03+00:00",
+  "sha": "64c74b055b7ccb1f5dd224e2a024efd2a37a85c9",
+  "date": "2026-11-27T15:10:39+00:00",
   "ok": true,
   "advisories": [
     "RUSTSEC-2026-0543"
   ],
-  "run_id": "45848467636"
+  "run_id": "46022476552"
 }
