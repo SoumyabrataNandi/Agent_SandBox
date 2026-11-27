@@ -5,7 +5,7 @@
 - **Project Type**: Greenfield
 - **Start Date**: 2026-11-18
 - **Current Phase**: Cycle 6 — CONSTRUCTION
-- **Current Stage**: Cycle 6: C6-U1–U4 done (container check, gVisor, Python + JS clients); next C6-U5 release v0.3.0
+- **Current Stage**: Cycle 6 complete: v0.3.0 released as draft with client packages and image (run 45957479130); owner publishes the draft
 
 ## Workspace State
 - **Existing Code**: No (empty directory `d:\Agent-SandBox`)
@@ -172,13 +172,13 @@
 - [x] Workflow Planning — 5 units
 - [ ] Application Design — SKIP (light; clients mirror the HTTP API)
 - [x] Construction C6-U1..U4 — done 2026-11-26
-- [ ] C6-U5 Release v0.3.0
+- [x] C6-U5 Release v0.3.0 — done 2026-11-27
 
 ## Cycle 6 Construction Progress
 | Unit | Status |
 |---|---|
-| C6-U1 Container check | Done (verified by the first `container` run) |
-| C6-U2 gVisor comparator | Done (owner runs the bench workflow) |
+| C6-U1 Container check | Done (first `container` run 45852145652 green) |
+| C6-U2 gVisor comparator | Done (bench run 45853737600 measured gVisor) |
 | C6-U3 Python client | Done (14/14 against a real server) |
 | C6-U4 JavaScript client | Done (14/14 against a real server; tsc strict) |
-| C6-U5 Release v0.3.0 | Pending |
+| C6-U5 Release v0.3.0 | Done (binaries, client packages, draft release, ghcr.io image) |

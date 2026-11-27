@@ -587,3 +587,10 @@ WSL: user chose "only remove Rust" (not unregister). `rustup self uninstall` don
 - C6-U1: packaging/container/smoke.sh shared by release.yml and the new container.yml (path-filtered, read-only).
 - C6-U2: the bench gVisor install failed with wget exit 8 (bare runsc no longer published; continue-on-error hid it). It now installs from gvisor.tar.bz2 (SHA-512 verified) and reports the outcome in the job summary.
 - C6-U3/U4: clients/python (stdlib, >=3.10) and clients/js (fetch, >=Node 18, .d.ts); shared clients/testserver.py; 14/14 tests each against a real server locally; tsc strict OK; wheel and npm pack verified; README examples run. CI job `clients` (Python 3.10, Node 18); release job `clients` attaches the packages; scripts/client_versions.py keeps versions in step.
+
+---
+
+## C6-U5 Release
+**Timestamp**: 2026-11-26 to 2026-11-27
+**User Input**: (standing "all defaults"); owner started the bench workflow; "it's done" (after the Git sign-in)
+**AI Response**: b687399: ci, container (first run) and bench green. Bench run 45853737600 measured gVisor (runsc release-20261123.1); BENCHMARKS.md regenerated (a8531eb): Python 2.22 ms p50 vs gVisor docker exec 34.5 ms; all NFR-P1 targets met. Version 0.3.0 (010e33c, ci green); tag v0.3.0 (first pushes timed out on the sign-in; pushed after the owner signed in). Release run 45957479130: all 8 jobs green, including client packages and the container image; ghcr.io image 0.3.0 pullable anonymously. Cycle 6 complete; owner publishes the v0.3.0 draft.
